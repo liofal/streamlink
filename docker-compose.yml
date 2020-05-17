@@ -1,0 +1,44 @@
+version: '3.7'
+
+x-common: &common
+    image: liofal/streamlink:1.8.3
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: 
+        - ../global.env    
+        - default.env
+        - clientid.env
+    user: 1027:100
+    logging:
+      driver: json-file
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    volumes:
+    - /volume1/twitch:/download
+
+services:
+#  test:
+#     <<: *common
+#     # volumes:
+#     # - ./streamlink-recorder.py:/streamlink-recorder.py
+#     # - /volume1/twitch:/download
+#     # entrypoint: ping www.google.be
+#     # user: root
+#     environment:
+#       - user=nl_kripp
+#       - quality=worst
+ 
+ serral:
+    <<: *common
+    container_name: streamlink_serral
+    environment:
+      - user=serral
+      - quality=best
+      - timer=240
+
+  
+  
