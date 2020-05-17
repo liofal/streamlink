@@ -1,0 +1,74 @@
+version: '3.7'
+
+x-common: &common
+    image: liofal/streamlink:1.7.3
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: 
+        - ../global.env    
+        - default.env
+        - clientid.env
+    user: 1027:100
+    logging:
+      driver: json-file
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    volumes:
+    - /volume1/twitch:/download
+
+services:
+#  test:
+#     <<: *common
+#     volumes:
+#     - ./streamlink-recorder.py:/streamlink-recorder.py
+#     - /volume1/twitch:/download
+#     environment:
+#       - user=polt
+#       - quality=worst
+ 
+ gsl:
+    <<: *common
+    environment:
+      - user=gsl
+      - gamelist=496902
+ 
+ starcraft:
+    <<: *common
+    environment:
+      - user=starcraft
+      - gamelist=496902
+ 
+ maru072:
+    <<: *common
+    environment:
+      - user=maru072
+      - quality=best
+ 
+ serral:
+    <<: *common
+    environment:
+      - user=serral
+      - quality=best
+
+ rb_reynor:
+    <<: *common
+    environment:
+      - user=rb_reynor
+
+ n33bl3t:
+    <<: *common
+    environment:
+      - user=n33bl3t
+      - quality=best
+
+ krip:
+   <<: *common
+   environment:
+     - user=nl_kripp
+     - quality=480p,720p,720p60
+     - gamelist=138585
+
