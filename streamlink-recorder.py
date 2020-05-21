@@ -8,12 +8,23 @@ import json
 import os
 
 from threading import Timer
+from oauthlib.oauth2 import BackendApplicationClient
+from requests_oauthlib import OAuth2Session
+
+## enable extra logging
+# import logging
+# import sys
+# log = logging.getLogger('requests_oauthlib')
+# log.addHandler(logging.StreamHandler(sys.stdout))
+# log.setLevel(logging.DEBUG)
 
 # Init variables with some default values
 timer = 30
 user = ""
 quality = "best"
 client_id = ""
+client_secret = ""
+token = ""
 slack_id = ""
 game_list = ""
 
@@ -36,17 +47,15 @@ def post_to_slack(message):
             % (response.status_code, response.text)
         )
 
+# still need to manage token refresh based on expiration
 def get_from_twitch(operation):
-    if client_id is None:
-        print("client_id is not specified")
-        pass
+    client = BackendApplicationClient(client_id=client_id)
+    oauth = OAuth2Session(client=client)
+    token = oauth.fetch_token(token_url='https://id.twitch.tv/oauth2/token', client_id=client_id, client_secret=client_secret,include_client_id=True)
 
     url = 'https://api.twitch.tv/helix/' + operation
+    response = oauth.get(url,headers={'Accept':'application/json','Client-ID':client_id})
 
-    response = requests.get(
-        url, 
-        headers={'Client-ID': client_id}
-    )
     if response.status_code != 200:
         raise ValueError(
             'Request to twitch returned an error %s, the response is:\n%s'
@@ -60,31 +69,19 @@ def get_from_twitch(operation):
     return info
 
 def check_user(user):
-    userid = getuserid(user)
 
     try:
-        if userid == 0 :
-            status = 2
+        info = get_from_twitch('streams?user_login=' + user )
+        if len(info['data']) == 0 :
+            status = 1
+        elif game_list !='' and info['data'][0].get("game_id") not in game_list.split(','):
+                status = 4
         else:
-            info = get_from_twitch('streams?user_id=' + userid )
-            if len(info['data']) == 0 :
-                status = 1
-            elif game_list !='' and info['data'][0].get("game_id") not in game_list.split(','):
-                 status = 4
-            else:
-                status = 0
-    except Exception:
+            status = 0
+    except Exception as e:
+        print(e)
         status = 3
     return status
-
-def getuserid(user):
-
-    try:
-        info = get_from_twitch('users?login=' + user )
-        userid = info['data'][0].get("id")
-    except Exception:
-        userid = 0
-    return userid
 
 def loopcheck():
     status = check_user(user)
@@ -119,6 +116,7 @@ def main():
     global user
     global quality
     global client_id
+    global client_secret
     global slack_id
     global game_list
 
@@ -127,6 +125,7 @@ def main():
     parser.add_argument("-user", help="Twitch user that we are checking")
     parser.add_argument("-quality", help="Recording quality")
     parser.add_argument("-clientid", help="Your twitch app client id")
+    parser.add_argument("-clientsecret", help="Your twitch app client secret")
     parser.add_argument("-slackid", help="Your slack app client id")
     parser.add_argument("-gamelist", help="The game list to be recorded")
     args = parser.parse_args()
@@ -144,8 +143,13 @@ def main():
 
     if args.clientid is not None:
         client_id = args.clientid
+    if args.clientsecret is not None:
+        client_secret = args.clientsecret
     if client_id is None:
         print("Please create a twitch app and set the client id with -clientid [YOUR ID]")
+        return
+    if client_secret is None:
+        print("Please create a twitch app and set the client secret with -clientsecret [YOUR SECRET]")
         return
 
     print("Checking for", user, "every", timer, "seconds. Record with", quality, "quality.")
