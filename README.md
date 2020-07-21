@@ -12,9 +12,11 @@ I'm also interested with new projects for automation of daily popular tasks, don
 # Notes
 
 
-## 1.8.0
+## 1.8.0 - 1.8.1
 Full rework with support of OAuth2 token management
 Review of helix twitch operation and simplification of the flow
+
+Upgrade python 3.8.4-alpine3.12
 
 ## 1.7.2
 Upgrade python 3.8.1-alpine3.11

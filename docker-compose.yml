@@ -1,7 +1,7 @@
 version: '3.7'
 
 x-common: &common
-    image: liofal/streamlink:1.8.0
+    image: liofal/streamlink:1.8.1
     build:
       context: .
       dockerfile: Dockerfile
@@ -21,22 +21,16 @@ x-common: &common
     - /volume1/twitch:/download
 
 services:
- test:
-    <<: *common
-    volumes:
-    - ./streamlink-recorder.py:/streamlink-recorder.py
-    # - /volume1/twitch:/download
-    entrypoint: ping www.google.be
-    user: root
-    environment:
-      - user=polt
-      - quality=worst
- 
- gsl:
-    <<: *common
-    environment:
-      - user=gsl
-      - gamelist=496902
+#  test:
+#     <<: *common
+#     # volumes:
+#     # - ./streamlink-recorder.py:/streamlink-recorder.py
+#     # - /volume1/twitch:/download
+#     # entrypoint: ping www.google.be
+#     # user: root
+#     environment:
+#       - user=nl_kripp
+#       - quality=worst
  
  starcraft:
     <<: *common
@@ -67,10 +61,4 @@ services:
       - user=n33bl3t
       - quality=best
 
- krip:
-   <<: *common
-   environment:
-     - user=nl_kripp
-     - quality=480p,720p,720p60
-     - gamelist=138585
-   
+ 
