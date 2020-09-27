@@ -1,7 +1,7 @@
 version: '3.7'
 
 x-common: &common
-    image: liofal/streamlink:1.8.1
+    image: liofal/streamlink:1.8.3
     build:
       context: .
       dockerfile: Dockerfile
@@ -32,33 +32,22 @@ services:
 #       - user=nl_kripp
 #       - quality=worst
  
- starcraft:
-    <<: *common
-    environment:
-      - user=starcraft
-      - gamelist=496902
- 
- maru072:
-    <<: *common
-    environment:
-      - user=maru072
-      - quality=best
- 
  serral:
     <<: *common
     environment:
       - user=serral
       - quality=best
 
- rb_reynor:
+ j_alexander_hs:
     <<: *common
     environment:
-      - user=rb_reynor
-
- n33bl3t:
+      - user=j_alexander_hs
+      - quality=480p
+  
+ blastoise:
     <<: *common
     environment:
-      - user=n33bl3t
-      - quality=best
-
- 
+      - user=blastoise
+      - quality=480p
+  
+  
