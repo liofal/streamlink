@@ -6,7 +6,7 @@ x-common: &common
       context: .
       dockerfile: Dockerfile
     env_file: 
-        - ../global.env    
+        # - ../global.env    
         - default.env
         - clientid.env
     user: 1027:100
