@@ -21,7 +21,7 @@ x-common: &common
     - /volume1/twitch:/download
 
 services:
- test:
+  test:
     <<: *common
     container_name: streamlink_test
     # volumes:
@@ -30,15 +30,14 @@ services:
     # entrypoint: ping www.google.be
     # user: root
     environment:
-      - user=BoarControlHS
+      - user=${TWITCH}
       - quality=worst
  
- serral:
+  streamlink:
     <<: *common
-    container_name: streamlink_serral
+    container_name: streamlink_${TWITCH}
     environment:
-      - user=serral
-      - quality=best
+      - user=${TWITCH}
       - timer=240
 
   
