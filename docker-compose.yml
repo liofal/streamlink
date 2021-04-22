@@ -38,7 +38,4 @@ services:
     container_name: streamlink_${TWITCH}
     environment:
       - user=${TWITCH}
-      - timer=240
-
-  
-  
+      - quality=best
