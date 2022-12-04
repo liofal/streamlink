@@ -34,10 +34,11 @@ slack_id = ""
 game_list = ""
 
 # Init variables with some default values
+
+
 def post_to_slack(message):
     if slack_id is None:
         print("slackid is not specified, so disabling slack notification")
-        pass
 
     slack_url = "https://hooks.slack.com/services/" + slack_id
     slack_data = {'text': message}
@@ -49,10 +50,13 @@ def post_to_slack(message):
     )
     if response.status_code != 200:
         raise ValueError(
-            f'Request to slack returned an error {response.status_code}, the response is:\n{response.text}'
+            f'Request to slack returned an error {response.status_code}, '
+            f'the response is:\n{response.text}'
         )
 
 # still need to manage token refresh based on expiration
+
+
 def get_from_twitch(operation):
     client = BackendApplicationClient(client_id=client_id)
     oauth = OAuth2Session(client=client)
@@ -63,11 +67,16 @@ def get_from_twitch(operation):
         include_client_id=True)
 
     url = 'https://api.twitch.tv/helix/' + operation
-    response = oauth.get(url,headers={'Accept':'application/json','Client-ID':client_id})
+    response = oauth.get(
+        url,
+        headers={
+            'Accept': 'application/json',
+            'Client-ID': client_id})
 
     if response.status_code != 200:
         raise ValueError(
-            f'Request to twitch returned an error {response.status_code}, the response is:\n{response.text}'
+            f'Request to twitch returned an error {response.status_code}, '
+            f'the response is:\n{response.text}'
         )
     try:
         info = json.loads(response.content)
@@ -76,13 +85,14 @@ def get_from_twitch(operation):
         print(e)
     return info
 
+
 def check_user(user):
 
     try:
-        info = get_from_twitch('streams?user_login=' + user )
-        if len(info['data']) == 0 :
+        info = get_from_twitch('streams?user_login=' + user)
+        if len(info['data']) == 0:
             status = 1
-        elif game_list !='' and info['data'][0].get("game_id") not in game_list.split(','):
+        elif game_list != '' and info['data'][0].get("game_id") not in game_list.split(','):
                 status = 4
         else:
             status = 0
@@ -90,6 +100,7 @@ def check_user(user):
         print(e)
         status = 3
     return status
+
 
 def loopcheck():
     status = check_user(user)
@@ -103,21 +114,34 @@ def loopcheck():
     elif status == 4:
         print("unwanted game stream, checking again in", timer, "seconds")
     elif status == 0:
-        filename = user + " - " + datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S") + " - " + "title" + ".mp4"
+        filename = user + " - " + datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S") + \
+            " - " + "title" + ".mp4"
         
         # clean filename from unecessary characters
-        filename = "".join(x for x in filename if x.isalnum() or x in [" ", "-", "_", "."])
-        recorded_filename = os.path.join("/download/", filename)
+        filename = "".join(
+            x for x in filename if x.isalnum() or x in [
+                " ", "-", "_", "."])
+        recorded_filename = os.path.join("./download/", filename)
         
         # start streamlink process
-        post_to_slack("recording " + user+" ...")
+        post_to_slack("recording " + user + " ...")
         print(user, "recording ... ")
-        subprocess.call(["streamlink", "--twitch-disable-hosting", "--retry-max", "5", "--retry-streams", "60", "twitch.tv/" + user, quality, "-o", recorded_filename])
+        subprocess.call(["streamlink",
+                         "--twitch-disable-hosting",
+                         "--retry-max",
+                         "5",
+                         "--retry-streams",
+                         "60",
+                         "twitch.tv/" + user,
+                         quality,
+                         "-o",
+                         recorded_filename])
         print("Stream is done. Going back to checking.. ")
-        post_to_slack("Stream "+ user +" is done. Going back to checking..")
+        post_to_slack("Stream " + user + " is done. Going back to checking..")
 
     t = Timer(timer, loopcheck)
     t.start()
+
 
 def main():
     global timer
@@ -129,7 +153,9 @@ def main():
     global game_list
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-timer", help="Stream check interval (less than 15s are not recommended)")
+    parser.add_argument(
+        "-timer",
+        help="Stream check interval (less than 15s are not recommended)")
     parser.add_argument("-user", help="Twitch user that we are checking")
     parser.add_argument("-quality", help="Recording quality")
     parser.add_argument("-clientid", help="Your twitch app client id")
@@ -154,14 +180,24 @@ def main():
     if args.clientsecret is not None:
         client_secret = args.clientsecret
     if client_id is None:
-        print("Please create a twitch app and set the client id with -clientid [YOUR ID]")
+        print(
+            "Please create a twitch app and set the client id with -clientid [YOUR ID]")
         return
     if client_secret is None:
-        print("Please create a twitch app and set the client secret with -clientsecret [YOUR SECRET]")
+        print(
+            "Please create a twitch app and set the client secret with -clientsecret [YOUR SECRET]")
         return
 
-    print("Checking for", user, "every", timer, "seconds. Record with", quality, "quality.")
+    print(
+        "Checking for",
+        user,
+        "every",
+        timer,
+        "seconds. Record with",
+        quality,
+        "quality.")
     loopcheck()
+
 
 if __name__ == "__main__":
     # execute only if run as a script
