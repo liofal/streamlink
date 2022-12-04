@@ -11,8 +11,9 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 # Notes
 
-## 1.9.0
+## 1.9.0 - 1.9.1
 Move to python 3.11
+Various improvements to project, cleanup and dependencise management
 
 ## 1.8.0 - 1.8.5
 Full rework with support of OAuth2 token management
