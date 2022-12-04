@@ -9,10 +9,10 @@ RUN apk add gcc musl-dev --no-cache
 RUN mkdir /install
 WORKDIR /install
 RUN /usr/local/bin/python -m pip install --upgrade pip
-RUN pip install --prefix=/install --upgrade streamlink 
-RUN pip install --prefix=/install --upgrade oauth2client
-RUN pip install --prefix=/install --upgrade oauthlib
-RUN pip install --prefix=/install --upgrade requests_oauthlib
+
+# install dependencies and build
+ADD requirements.txt /install
+RUN pip install --prefix=/install -r requirements.txt 
 
 # Run in minimal alpine container with no other dependencies
 FROM base as runner
