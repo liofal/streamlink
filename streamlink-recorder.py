@@ -33,10 +33,8 @@ token = ""
 slack_id = ""
 game_list = ""
 
-# Init variables with some default values
-
-
 def post_to_slack(message):
+    """this function is in charge of the slack notification"""
     if slack_id is None:
         print("slackid is not specified, so disabling slack notification")
 
@@ -58,6 +56,7 @@ def post_to_slack(message):
 
 
 def get_from_twitch(operation):
+    """this function encapsulates all get operation to the twitch API and manages authentication"""
     client = BackendApplicationClient(client_id=client_id)
     oauth = OAuth2Session(client=client)
     oauth.fetch_token(
@@ -87,13 +86,13 @@ def get_from_twitch(operation):
 
 
 def check_user(user):
-
+    """this function checks if a user is online"""
     try:
         info = get_from_twitch('streams?user_login=' + user)
         if len(info['data']) == 0:
             status = 1
         elif game_list != '' and info['data'][0].get("game_id") not in game_list.split(','):
-                status = 4
+            status = 4
         else:
             status = 0
     except Exception as e:
@@ -103,6 +102,7 @@ def check_user(user):
 
 
 def loopcheck():
+    """this function orchestrate in a loop and will check and trigger download until interrupted"""
     status = check_user(user)
     if status == 2:
         print("username not found. invalid username?")
@@ -144,6 +144,7 @@ def loopcheck():
 
 
 def main():
+    """main function parse and check the arguments and will initiate the loop check if valid"""
     global timer
     global user
     global quality
