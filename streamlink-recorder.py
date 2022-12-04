@@ -1,9 +1,12 @@
-# This script checks if a user on twitch is currently streaming and then records the stream via streamlink
+"""
+This script checks if a user on twitch is currently streaming and 
+then records the stream via streamlink
+"""
 import subprocess
 import datetime
 import argparse
 
-import requests
+
 import json
 import os
 
@@ -11,7 +14,9 @@ from threading import Timer
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 
-## enable extra logging
+import requests
+
+# enable extra logging
 # import logging
 # import sys
 # log = logging.getLogger('requests_oauthlib')
