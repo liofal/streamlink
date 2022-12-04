@@ -52,7 +52,11 @@ def post_to_slack(message):
 def get_from_twitch(operation):
     client = BackendApplicationClient(client_id=client_id)
     oauth = OAuth2Session(client=client)
-    token = oauth.fetch_token(token_url='https://id.twitch.tv/oauth2/token', client_id=client_id, client_secret=client_secret,include_client_id=True)
+    oauth.fetch_token(
+        token_url='https://id.twitch.tv/oauth2/token',
+        client_id=client_id,
+        client_secret=client_secret,
+        include_client_id=True)
 
     url = 'https://api.twitch.tv/helix/' + operation
     response = oauth.get(url,headers={'Accept':'application/json','Client-ID':client_id})
