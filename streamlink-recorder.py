@@ -44,8 +44,7 @@ def post_to_slack(message):
     )
     if response.status_code != 200:
         raise ValueError(
-            'Request to slack returned an error %s, the response is:\n%s'
-            % (response.status_code, response.text)
+            f'Request to slack returned an error {response.status_code}, the response is:\n{response.text}'
         )
 
 # still need to manage token refresh based on expiration
@@ -63,8 +62,7 @@ def get_from_twitch(operation):
 
     if response.status_code != 200:
         raise ValueError(
-            'Request to twitch returned an error %s, the response is:\n%s'
-            % (response.status_code, response.text)
+            f'Request to twitch returned an error {response.status_code}, the response is:\n{response.text}'
         )
     try:
         info = json.loads(response.content)
