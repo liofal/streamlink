@@ -39,7 +39,8 @@ def post_to_slack(message):
 
     response = requests.post(
         slack_url, data=json.dumps(slack_data),
-        headers={'Content-Type': 'application/json'}
+        headers={'Content-Type': 'application/json'},
+        timeout=30
     )
     if response.status_code != 200:
         raise ValueError(
