@@ -21,21 +21,19 @@ x-common: &common
     - /volume1/twitch:/download
 
 services:
-  test:
-    <<: *common
-    container_name: streamlink_test
-    # volumes:
-    # - ./streamlink-recorder.py:/streamlink-recorder.py
-    # - /volume1/twitch:/download
-    # entrypoint: ping www.google.be
-    # user: root
-    environment:
-      - user=${TWITCH}
-      - quality=worst
- 
   streamlink:
     <<: *common
     container_name: streamlink_${TWITCH}
     environment:
       - user=${TWITCH}
       - quality=best
+
+  streamlink-latest:
+    <<: *common
+    container_name: streamlink-latest_${TWITCH}
+    image: liofal/streamlink:latest
+    environment:
+      - user=${TWITCH}
+      - quality=best
+
+      
