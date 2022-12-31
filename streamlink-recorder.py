@@ -32,6 +32,7 @@ client_secret = ""
 token = ""
 slack_id = ""
 game_list = ""
+twitch_account_auth = ""
 
 def post_to_slack(message):
     """this function is in charge of the slack notification"""
@@ -127,6 +128,7 @@ def loopcheck():
         post_to_slack("recording " + user + " ...")
         print(user, "recording ... ")
         subprocess.call(["streamlink",
+                         "--twitch-api-header=Authorization=OAuth " + twitch_account_auth,
                          "--twitch-disable-hosting",
                          "--retry-max",
                          "5",
@@ -152,6 +154,7 @@ def main():
     global client_secret
     global slack_id
     global game_list
+    global twitch_account_auth
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -163,6 +166,7 @@ def main():
     parser.add_argument("-clientsecret", help="Your twitch app client secret")
     parser.add_argument("-slackid", help="Your slack app client id")
     parser.add_argument("-gamelist", help="The game list to be recorded")
+    parser.add_argument("-twitchaccountauth", help="Twitch personal account token. To disable embedded ads")
     args = parser.parse_args()
  
     if args.timer is not None:
@@ -175,6 +179,8 @@ def main():
         slack_id = args.slackid
     if args.gamelist is not None:
         game_list = args.gamelist
+    if args.twitchaccountauth is not None:
+        twitch_account_auth = args.twitchaccountauth
 
     if args.clientid is not None:
         client_id = args.clientid
