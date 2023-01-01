@@ -13,7 +13,7 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 ## 1.9.0 - 1.9.1
 Move to python 3.11
-Various improvements to project, cleanup and dependencise management
+Various improvements to project, cleanup and dependencies management
 
 ## 1.8.0 - 1.8.5
 Full rework with support of OAuth2 token management
@@ -69,23 +69,34 @@ Fill in twitch clientid to interact with twitch API and retrieve status of strea
 
     clientid=xxxxxxxx
 
+## clientsecret
+Fill in twitch clientsecret to interact with twitch API and retrieve status of stream from stream list
+
+    clientsecret=xxxxxxxx
+
+## twitchaccountauth
+Fill in twitch account token(it is different from client token)
+
+This is for disabling embedded ads, if you're a subscriber of the target streamer.
+
+You can find how to get this token on [Streamlink Documentation](https://streamlink.github.io/cli/plugins/twitch.html).
+
+    twitchaccountauth=xxxxxxxxxx
+
 ## slackid
 Fill in slack if you want recod start/stop notification
 
     slackid=xxxxxxxxx
 
 # Docker
-
     docker run -d --rm \
     -v twitch:/download \
-    -u 1027:100 \
     -e timer=360 \
     -e user=heromarine \
     -e quality=best \
     -e clientid=XxX \
+    -e clientsecret=XxX \
     -e slackid=XxX \
-    -v twitch:/download \
-    -u 1027:100 \
     liofal/streamlink:latest
 
 # Compose
