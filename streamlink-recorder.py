@@ -139,52 +139,26 @@ def main():
     global timer, user, quality, client_id, client_secret, slack_id, game_list, twitch_account_auth
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-timer",
-        help="Stream check interval (less than 15s are not recommended)")
-    parser.add_argument("-user", help="Twitch user that we are checking")
-    parser.add_argument("-quality", help="Recording quality")
-    parser.add_argument("-clientid", help="Your twitch app client id")
-    parser.add_argument("-clientsecret", help="Your twitch app client secret")
+    parser.add_argument("-timer", type=int, default=240, help="Stream check interval (less than 15s are not recommended)")
+    parser.add_argument("-user", required=True, help="Twitch user that we are checking")
+    parser.add_argument("-quality", default="720p60,720p,best", help="Recording quality")
+    parser.add_argument("-clientid", required=True, help="Your twitch app client id")
+    parser.add_argument("-clientsecret", required=True, help="Your twitch app client secret")
     parser.add_argument("-slackid", help="Your slack app client id")
-    parser.add_argument("-gamelist", help="The game list to be recorded")
+    parser.add_argument("-gamelist", default="", help="The game list to be recorded")
     parser.add_argument("-twitchaccountauth", help="Twitch personal account token. To disable embedded ads")
     args = parser.parse_args()
  
-    if args.timer is not None:
-        timer = int(args.timer)
-    if args.user is not None:
-        user = args.user
-    if args.quality is not None:
-        quality = args.quality
-    if args.slackid is not None:
-        slack_id = args.slackid
-    if args.gamelist is not None:
-        game_list = args.gamelist
-    if args.twitchaccountauth is not None:
-        twitch_account_auth = args.twitchaccountauth
+    timer = args.timer
+    user = args.user
+    quality = args.quality
+    slack_id = args.slackid
+    game_list = args.gamelist
+    twitch_account_auth = args.twitchaccountauth
+    client_id = args.clientid
+    client_secret = args.clientsecret
 
-    if args.clientid is not None:
-        client_id = args.clientid
-    if args.clientsecret is not None:
-        client_secret = args.clientsecret
-    if client_id is None:
-        print(
-            "Please create a twitch app and set the client id with -clientid [YOUR ID]")
-        return
-    if client_secret is None:
-        print(
-            "Please create a twitch app and set the client secret with -clientsecret [YOUR SECRET]")
-        return
-
-    print(
-        "Checking for",
-        user,
-        "every",
-        timer,
-        "seconds. Record with",
-        quality,
-        "quality.")
+    print("Checking for", user, "every", timer, "seconds. Record with", quality, "quality.")
     loopcheck()
 
 
