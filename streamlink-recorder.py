@@ -23,23 +23,12 @@ import requests
 # log.addHandler(logging.StreamHandler(sys.stdout))
 # log.setLevel(logging.DEBUG)
 
-# Init variables with some default values
-timer = 30
-user = ""
-quality = "best"
-client_id = ""
-client_secret = ""
-token = ""
-slack_id = ""
-game_list = ""
-twitch_account_auth = ""
-
 def post_to_slack(message):
     """this function is in charge of the slack notification"""
     if slack_id is None:
         print("slackid is not specified, so disabling slack notification")
 
-    slack_url = "https://hooks.slack.com/services/" + slack_id
+    slack_url = f"https://hooks.slack.com/services/{slack_id}"
     slack_data = {'text': message}
 
     response = requests.post(
@@ -147,14 +136,7 @@ def loopcheck():
 
 def main():
     """main function parse and check the arguments and will initiate the loop check if valid"""
-    global timer
-    global user
-    global quality
-    global client_id
-    global client_secret
-    global slack_id
-    global game_list
-    global twitch_account_auth
+    global timer, user, quality, client_id, client_secret, slack_id, game_list, twitch_account_auth
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
