@@ -78,6 +78,8 @@ def get_from_twitch(operation):
 
 def check_user(user):
     """this function checks if a user is online"""
+    title=""
+    status=3
     try:
         info = get_from_twitch('streams?user_login=' + user)
         if len(info['data']) == 0:
@@ -85,16 +87,17 @@ def check_user(user):
         elif game_list != '' and info['data'][0].get("game_id") not in game_list.split(','):
             status = 4
         else:
+            title = info['data'][0].get("title")
             status = 0
     except Exception as e:
         print(e)
         status = 3
-    return status
+    return status, title
 
 
 def loopcheck():
     """this function orchestrate in a loop and will check and trigger download until interrupted"""
-    status = check_user(user)
+    status, title = check_user(user)
     if status == 2:
         print("username not found. invalid username?")
         return
@@ -105,8 +108,7 @@ def loopcheck():
     elif status == 4:
         print("unwanted game stream, checking again in", timer, "seconds")
     elif status == 0:
-        filename = user + " - " + datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S") + \
-            " - " + "title" + ".mp4"
+        filename = f"{user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {title}.mp4"
         
         # Remove any character that is not a letter, a digit, a space, or one of these characters: -_.:
         filename = re.sub(r'[^\w\s._:-]', '', filename)
