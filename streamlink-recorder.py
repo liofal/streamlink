@@ -32,19 +32,20 @@ def post_to_slack(message):
     slack_url = f"https://hooks.slack.com/services/{slack_id}"
     slack_data = {'text': message}
 
-    response = requests.post(
-        slack_url, data=json.dumps(slack_data),
-        headers={'Content-Type': 'application/json'},
-        timeout=30
-    )
-    if response.status_code != 200:
+    try:
+        response = requests.post(
+            slack_url, data=json.dumps(slack_data),
+            headers={"Content-Type": "application/json"},
+            timeout=30
+        )
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
         raise ValueError(
             f'Request to slack returned an error {response.status_code}, '
             f'the response is:\n{response.text}'
         )
-
-# still need to manage token refresh based on expiration
-
+    except Exception as e:
+        print(f"Error occurred while sending message to Slack: {e}")
 
 def get_from_twitch(operation):
     """this function encapsulates all get operation to the twitch API and manages authentication"""
