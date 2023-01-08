@@ -116,25 +116,33 @@ def loopcheck():
         recorded_filename = os.path.join("./download/", filename)
         
         # start streamlink process
-        post_to_slack("recording " + user + " ...")
-        print(user, "recording ... ")
-        subprocess.call(["streamlink",
-                         "--twitch-api-header=Authorization=OAuth " + twitch_account_auth,
-                         "--twitch-disable-hosting",
-                         "--retry-max",
-                         "5",
-                         "--retry-streams",
-                         "60",
-                         "twitch.tv/" + user,
-                         quality,
-                         "-o",
-                         recorded_filename])
-        print("Stream is done. Going back to checking.. ")
-        post_to_slack("Stream " + user + " is done. Going back to checking..")
+        message=f"recording {user} ..."
+        post_to_slack(message)
+        print(message)
+        run_streamlink(twitch_account_auth, user, quality, recorded_filename)
+        message=f"Stream {user} is done. File saved as {filename}. Going back to checking.."
+        print(message)
+        post_to_slack(message)
 
-    t = Timer(timer, loopcheck)
-    t.start()
+        t = Timer(timer, loopcheck)
+        t.start()
 
+def run_streamlink(twitch_account_auth, user, quality, recorded_filename):
+    command = [
+        "streamlink",
+        "--twitch-disable-hosting",
+        "--retry-max",
+        "5",
+        "--retry-streams",
+        "60",
+        f"twitch.tv/{user}",
+        quality,
+        "-o",
+        recorded_filename
+    ]
+    if twitch_account_auth:
+        command.insert(1, f"--twitch-api-header=Authorization=OAuth {twitch_account_auth}")
+    subprocess.run(command)
 
 def main():
     """main function parse and check the arguments and will initiate the loop check if valid"""
