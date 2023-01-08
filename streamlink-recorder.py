@@ -105,9 +105,9 @@ def loopcheck():
     elif status == 3:
         print("unexpected error. maybe try again later")
     elif status == 1:
-        print(user, "currently offline, checking again in", timer, "seconds")
+        print(f"{user} currently offline, checking again in {timer} seconds")
     elif status == 4:
-        print("unwanted game stream, checking again in", timer, "seconds")
+        print(f"Unwanted game stream, checking again in {timer} seconds")
     elif status == 0:
         filename = f"{user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {title}.mp4"
         
