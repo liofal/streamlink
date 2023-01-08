@@ -11,6 +11,11 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 # Notes
 
+## 2.0
+major refactoring and improvements to the code, respect standards and best practices 
+parse title stream and add to filename
+added contribution from [zerobell-lee](https://github.com/zerobell-lee) to disable ads by authenticating as a twitch user 
+
 ## 1.9.0 - 1.9.1
 Move to python 3.11
 Various improvements to project, cleanup and dependencies management
