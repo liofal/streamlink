@@ -9,6 +9,7 @@ import argparse
 
 import json
 import os
+import re
 
 from threading import Timer
 from oauthlib.oauth2 import BackendApplicationClient
@@ -107,10 +108,8 @@ def loopcheck():
         filename = user + " - " + datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S") + \
             " - " + "title" + ".mp4"
         
-        # clean filename from unecessary characters
-        filename = "".join(
-            x for x in filename if x.isalnum() or x in [
-                " ", "-", "_", "."])
+        # Remove any character that is not a letter, a digit, a space, or one of these characters: -_.:
+        filename = re.sub(r'[^\w\s._:-]', '', filename)
         recorded_filename = os.path.join("./download/", filename)
         
         # start streamlink process
