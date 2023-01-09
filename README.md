@@ -13,7 +13,9 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 ## 2.0
 major refactoring and improvements to the code, respect standards and best practices 
+
 parse title stream and add to filename
+
 added contribution from [zerobell-lee](https://github.com/zerobell-lee) to disable ads by authenticating as a twitch user 
 
 ## 1.9.0 - 1.9.1
@@ -26,26 +28,9 @@ Review of helix twitch operation and simplification of the flow
 
 Upgrade python python:3.9.1-alpine3.12
 
-## 1.7.0 - 1.7.1
-Upgrade streamlink for support of twitch API recent changes
-
-## 1.6.0
-Upgrade python
-Adapt recorder script to rely on upgrade version of twitch API
-
-## 1.5.0
-Upgrade python
-Explicit version of python to control the release cycle of base images
-
-## 1.4.0
-Games list filter selection
-Upgrade python
-
-## 1.3.0
-Introducing multi-stage building
-
 # Credits
-Thanks to the work of the original owners, so far I used and adapted python scripts from 
+Originally inspired from the work of the people here below.
+Thanks to those people.
 
 https://github.com/Neolysion/Twitch-Recorder/blob/master/check.py
 
@@ -53,7 +38,7 @@ https://www.junian.net/2017/01/how-to-record-twitch-streams.html
 
 I cleaned up and adapted following my requirements and added a slack integration
 
-All rights are reserved to the original script owners, tell me if I need to remove those however, I might be working on a rewrite from scratch removing few dependencies to python libraries
+All rights are reserved to the original script owners, it has been now mostly reworked from scratch nevertheless will remove code if requested.
 
 # Quality
 Quality is specified within the stream, any twitch quality specified existing for the stream can be defined
