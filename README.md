@@ -13,7 +13,7 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 ## 2.0.1
 solved bug of missing loop issue [#6](https://github.com/liofal/streamlink/issues/6)
-thanks to [zerobell-lee](https://github.com/zerobell-lee) for raising it up.
+thanks to [too-many-bees](https://github.com/too-many-bees) for raising it up.
 
 ## 2.0
 major refactoring and improvements to the code, respect standards and best practices 
