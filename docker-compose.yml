@@ -1,7 +1,7 @@
 version: '3.7'
 
 x-common: &common
-    image: liofal/streamlink:2.0
+    image: liofal/streamlink:2.0.1
     build:
       context: .
       dockerfile: Dockerfile

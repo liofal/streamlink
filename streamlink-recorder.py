@@ -124,8 +124,8 @@ def loopcheck():
         print(message)
         post_to_slack(message)
 
-        t = Timer(timer, loopcheck)
-        t.start()
+    t = Timer(timer, loopcheck)
+    t.start()
 
 def run_streamlink(twitch_account_auth, user, quality, recorded_filename):
     command = [
