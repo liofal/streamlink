@@ -44,7 +44,7 @@ jobs:
       uses: aquasecurity/trivy-action@master
       with:
         scan-type: 'fs'
-        input: '.'
+        path: '.'  # Changed from 'input' to 'path'
         format: 'table'
         exit-code: '1'
         ignore-unfixed: true
