@@ -68,16 +68,4 @@ jobs:
         WITH_V: true
       id: tag
 
-    - name: Log in to Docker Hub
-      run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-      
-    - name: Build and push Docker image with Kaniko
-      uses: GoogleContainerTools/kaniko-action@v1.0.0
-      with:
-        image: liofal/streamlink:${{ steps.tag.outputs.new_tag }}
-        context: .
-        dockerfile: ./Dockerfile
-        destination: liofal/streamlink:${{ steps.tag.outputs.new_tag }}
-        cache: true
-      env:
-        DOCKER_CONFIG: /kaniko/.docker/
+
