@@ -35,6 +35,37 @@ jobs:
     - name: Format code
       run: black . --check
 
+  vulnerability-scan-trivy:
+    runs-on: ubuntu-latest
+    needs: format
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Trivy
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        input: '.'
+        format: 'table'
+        exit-code: '1'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        severity: 'CRITICAL,HIGH'
+
+  vulnerability-scan-bandit:
+    runs-on: ubuntu-latest
+    needs: format
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+    - name: Install bandit
+      run: pip install bandit
+    - name: Bandit security checks
+      run: bandit -r .
+
+
   vulnerability-scan:
     runs-on: ubuntu-latest
     needs: format
@@ -96,7 +127,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Bump version and push tag
-      uses: anothrNick/github-tag-action@1.36.0
+      uses: anothrNick/github-tag-action@1.64.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         DEFAULT_BUMP: patch
