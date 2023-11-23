@@ -47,9 +47,11 @@ jobs:
         path: '.'  # Changed from 'input' to 'path'
         format: 'table'
         exit-code: '1'
-        ignore-unfixed: true
-        vuln-type: 'os,library'
-        severity: 'CRITICAL,HIGH'
+        ignore-unfixed: false
+        vuln-type: 'os,library,config'
+        severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+      env:
+        TRIVY_DEBUG: true # Enable debug mode for more verbose output
 
   vulnerability-scan-bandit:
     runs-on: ubuntu-latest
