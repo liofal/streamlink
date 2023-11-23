@@ -1,3 +1,4 @@
+
 name: Python CI with Kaniko (Beta)
 
 on:
@@ -7,65 +8,97 @@ on:
     branches: [ beta ]
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
-
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
         python-version: '3.11'
+    - name: Install flake8
+      run: pip install flake8
+    - name: Lint with flake8
+      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
+  format:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+    - name: Install black
+      run: pip install black
+    - name: Format code
+      run: black . --check
+
+  vulnerability-scan:
+    runs-on: ubuntu-latest
+    needs: format
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+    - name: Install safety
+      run: pip install safety
+    - name: Scan for vulnerabilities
+      run: safety check
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [lint, vulnerability-scan]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-cov
+    - name: Run tests
+      run: pytest --cov=./ --cov-report=term --cov-fail-under=80
 
-    - name: Format code with black
-      run: |
-        pip install black
-        black . --check
-
-    - name: Lint with flake8
-      run: |
-        pip install flake8
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-
-    - name: Scan for vulnerabilities
-      run: |
-        pip install safety
-        safety check
-
+  upgrade-deps:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
     - name: Upgrade dependencies
       run: |
         pip install pip-tools
         pip-compile --upgrade
-
-    - name: Run tests after upgrade deps
-      run: |
-        pytest --cov=./ --cov-report=term --cov-fail-under=80
-
-    - name: Upgrade dependencies and commit changes
+    - name: Commit changes
       run: |
         git config --global user.name 'CI Bot'
         git config --global user.email 'ci-bot@example.com'
         git add requirements.txt
-        git diff --staged --quiet || git commit -m "ci: upgrade dependencies" || echo "No changes to commit"
-        git push origin HEAD:${{ github.head_ref }}) || echo "No changes to push"
+        git diff --staged --quiet || git commit -m "ci: upgrade dependencies"
+        git push origin HEAD:${{ github.head_ref }} || echo "No changes to push"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  tag-and-release:
+    runs-on: ubuntu-latest
+    needs: upgrade-deps
+    if: github.ref == 'refs/heads/beta'
+    steps:
+    - uses: actions/checkout@v2
     - name: Bump version and push tag
-      if: github.ref == 'refs/heads/beta'
       uses: anothrNick/github-tag-action@1.36.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         DEFAULT_BUMP: patch
         RELEASE_BRANCHES: beta
         WITH_V: true
-      id: tag
-
-
