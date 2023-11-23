@@ -43,7 +43,7 @@ jobs:
       uses: aquasecurity/trivy-action@master
       with:
         scan-type: 'fs'
-        path: '.'  # Changed from 'input' to 'path'
+        path: '/github/workspace'  # Changed from 'input' to 'path'
         format: 'table'
         exit-code: '1'
         ignore-unfixed: false
