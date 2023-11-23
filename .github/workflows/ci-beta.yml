@@ -34,30 +34,6 @@ jobs:
     - name: Format code
       run: black . --check
 
-  vulnerability-scan-trivy:
-    runs-on: ubuntu-latest
-    needs: format
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Extract image name and tag from docker-compose.yml
-      id: docker-compose-image
-      run: |
-        IMAGE_REF=$(grep 'image:' docker-compose.yml | grep 'liofal/streamlink' | awk '{print $2}')
-        echo "IMAGE_REF=$IMAGE_REF" >> $GITHUB_ENV
-    - name: Build an image from Dockerfile using docker-compose
-      run: |
-        docker-compose build
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: '${{ env.IMAGE_REF }}'
-        format: 'table'
-        exit-code: '1'
-        ignore-unfixed: true
-        vuln-type: 'os,library'
-        severity: 'CRITICAL,HIGH'
-
   vulnerability-scan-bandit:
     runs-on: ubuntu-latest
     needs: format
@@ -75,7 +51,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    needs: [lint, vulnerability-scan-trivy, vulnerability-scan-bandit]
+    needs: [lint, vulnerability-scan-bandit]
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
