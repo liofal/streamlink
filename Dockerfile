@@ -1,23 +1,19 @@
-# Specify base image
-FROM python:3.11-alpine3.16 as base
+# Base image with Python
+FROM python:3-alpine as base
+WORKDIR /app
 
-# Build dependencies in python
+# Builder stage to install build dependencies and Python packages
 FROM base as builder
+RUN apk add --no-cache gcc musl-dev \
+    && pip install --upgrade pip
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt 
 
-# Install every build dependencies in builder image
-RUN apk add gcc musl-dev --no-cache
-RUN mkdir /install
-WORKDIR /install
-RUN /usr/local/bin/python -m pip install --upgrade pip
-
-# install dependencies and build
-ADD requirements.txt /install
-RUN pip install --prefix=/install -r requirements.txt 
-
-# Run in minimal alpine container with no other dependencies
+# Runner stage for the final image
 FROM base as runner
 COPY --from=builder /install /usr/local
-ADD streamlink-recorder.py /
+COPY streamlink-recorder.py .
 
-# Configure entrypoint with environment variables (only user is mandatory)
-ENTRYPOINT python ./streamlink-recorder.py -user=${user} -timer=${timer} -quality=${quality} -clientid=${clientid} -clientsecret=${clientsecret} -slackid=${slackid} -gamelist="${gamelist}" -twitchaccountauth=${twitchaccountauth}
+# Set the entrypoint
+ENTRYPOINT ["python", "./streamlink-recorder.py"]
+CMD ["-user=${user}", "-timer=${timer}", "-quality=${quality}", "-clientid=${clientid}", "-clientsecret=${clientsecret}", "-slackid=${slackid}", "-gamelist=${gamelist}", "-twitchaccountauth=${twitchaccountauth}"]
