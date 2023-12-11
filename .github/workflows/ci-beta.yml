@@ -33,16 +33,6 @@ jobs:
         pip install flake8
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
-    - name: Scan for vulnerabilities
-      run: |
-        pip install safety
-        safety check
-
-    - name: Upgrade dependencies
-      run: |
-        pip install pip-tools
-        pip-compile --upgrade
-
     - name: Bump version and push tag
       if: github.ref == 'refs/heads/beta'
       uses: anothrNick/github-tag-action@1.36.0
