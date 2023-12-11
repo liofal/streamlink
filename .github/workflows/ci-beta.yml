@@ -54,7 +54,7 @@ jobs:
       id: tag
 
     - name: Build and push Docker image with Kaniko
-      uses: GoogleContainerTools/kaniko-action@v1.0.0
+      uses: kaniko-project/executor@latest
       with:
         image: liofal/streamlink:${{ steps.tag.outputs.new_tag }}
         context: .
