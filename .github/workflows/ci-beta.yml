@@ -53,11 +53,23 @@ jobs:
         WITH_V: true
       id: tag
 
-    - name: Build and push Docker image with Kaniko
-      uses: kaniko-project/executor@latest
-      with:
-        image: liofal/streamlink:${{ steps.tag.outputs.new_tag }}
-        context: .
-        dockerfile: ./Dockerfile
-        destination: liofal/streamlink:${{ steps.tag.outputs.new_tag }}
-        cache: true
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/metadata-action@v3
+        id: metadata
+        with:
+          images: ghcr.io/${{ github.repository }}
+      - uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: int128/kaniko-action@v1
+        with:
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache: true
+          cache-repository: ghcr.io/${{ github.repository }}/cache
