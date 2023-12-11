@@ -18,6 +18,7 @@ class TestStreamlinkRecorder(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 import unittest
+import requests
 from unittest.mock import patch, MagicMock
 import streamlink_recorder
 
