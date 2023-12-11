@@ -22,9 +22,9 @@ import requests
 from unittest.mock import patch, MagicMock
 import streamlink_recorder
 
-class TestStreamlinkRecorder(unittest.TestCase):
 
-    @patch('streamlink_recorder.requests.post')
+class TestStreamlinkRecorder(unittest.TestCase):
+    @patch("streamlink_recorder.requests.post")
     def test_post_to_slack_success(self, mock_post):
         mock_response = MagicMock()
         mock_response.raise_for_status.return_value = None
@@ -35,7 +35,7 @@ class TestStreamlinkRecorder(unittest.TestCase):
         mock_post.assert_called_once()
         mock_response.raise_for_status.assert_called_once()
 
-    @patch('streamlink_recorder.requests.post')
+    @patch("streamlink_recorder.requests.post")
     def test_post_to_slack_failure(self, mock_post):
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError
@@ -47,7 +47,8 @@ class TestStreamlinkRecorder(unittest.TestCase):
         mock_post.assert_called_once()
         mock_response.raise_for_status.assert_called_once()
 
+
 # Add more tests here...
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
