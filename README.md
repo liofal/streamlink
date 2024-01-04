@@ -11,6 +11,10 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 # Notes
 
+## 2.0.2
+solved bug of env args being ignored [#10](https://github.com/liofal/streamlink/issues/10)
+thanks to [too-many-bees](https://github.com/too-many-bees) for raising it up.
+
 ## 2.0.1
 solved bug of missing loop issue [#6](https://github.com/liofal/streamlink/issues/6)
 thanks to [too-many-bees](https://github.com/too-many-bees) for raising it up.
