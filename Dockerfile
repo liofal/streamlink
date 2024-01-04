@@ -15,5 +15,4 @@ COPY --from=builder /install /usr/local
 COPY streamlink-recorder.py .
 
 # Set the entrypoint
-ENTRYPOINT ["python", "./streamlink-recorder.py"]
-CMD ["-user=${user}", "-timer=${timer}", "-quality=${quality}", "-clientid=${clientid}", "-clientsecret=${clientsecret}", "-slackid=${slackid}", "-gamelist=${gamelist}", "-twitchaccountauth=${twitchaccountauth}"]
+ENTRYPOINT python ./streamlink-recorder.py -user=${user} -timer=${timer} -quality=${quality} -clientid=${clientid} -clientsecret=${clientsecret} -slackid=${slackid} -gamelist="${gamelist}" -twitchaccountauth=${twitchaccountauth}
