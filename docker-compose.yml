@@ -1,7 +1,7 @@
 version: '3.7'
 
 x-common: &common
-    image: liofal/streamlink:2.0.2
+    image: liofal/streamlink:2.0.3
     build:
       context: .
       dockerfile: Dockerfile
@@ -18,7 +18,7 @@ x-common: &common
         limits:
           memory: 256M
     volumes:
-    - /volume1/twitch:/download
+    - /volume1/twitch:/app/download
 
 services:
   streamlink:
