@@ -17,18 +17,16 @@ from requests_oauthlib import OAuth2Session
 
 import requests
 
-# enable extra logging
-# import logging
-# import sys
-# log = logging.getLogger('requests_oauthlib')
-# log.addHandler(logging.StreamHandler(sys.stdout))
-# log.setLevel(logging.DEBUG)
+import logging
+import sys
 
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def post_to_slack(message):
     """this function is in charge of the slack notification"""
     if slack_id is None:
-        print("slackid is not specified, so disabling slack notification")
+        logger.info("slackid is not specified, so disabling slack notification")
 
     slack_url = f"https://hooks.slack.com/services/{slack_id}"
     slack_data = {"text": message}
@@ -47,7 +45,7 @@ def post_to_slack(message):
             f"the response is:\n{response.text}"
         )
     except Exception as e:
-        print(f"Error occurred while sending message to Slack: {e}")
+        logger.error(f"Error occurred while sending message to Slack: {e}")
 
 
 def get_from_twitch(operation):
@@ -75,7 +73,7 @@ def get_from_twitch(operation):
         info = json.loads(response.content)
         # print(json.dumps(info, indent=4, sort_keys=True))
     except Exception as e:
-        print(e)
+        logger.error(e)
     return info
 
 
@@ -95,7 +93,7 @@ def check_user(user):
             title = info["data"][0].get("title")
             status = 0
     except Exception as e:
-        print(e)
+        logger.error(e)
         status = 3
     return status, title
 
@@ -105,13 +103,13 @@ def loopcheck():
     while True:  # Use a continuous loop.
         status, title = check_user(user)
         if status == 2:
-            print("username not found. invalid username?")
+            logger.info("username not found. invalid username?")
         elif status == 3:
-            print("unexpected error. maybe try again later")
+            logger.info("unexpected error. maybe try again later")
         elif status == 1:
-            print(f"{user} currently offline, checking again in {timer} seconds")
+            logger.info(f"{user} currently offline, checking again in {timer} seconds")
         elif status == 4:
-            print(f"Unwanted game stream, checking again in {timer} seconds")
+            logger.info(f"Unwanted game stream, checking again in {timer} seconds")
         elif status == 0:
             filename = f"{user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {title}.mp4"
 
@@ -122,12 +120,12 @@ def loopcheck():
             # start streamlink process
             message = f"recording {user} ..."
             post_to_slack(message)
-            print(message)
+            logger.info(message)
             run_streamlink(twitch_account_auth, user, quality, recorded_filename)
             message = (
                 f"Stream {user} is done. File saved as {filename}. Going back to checking.."
             )
-            print(message)
+            logger.info(message)
             post_to_slack(message)
 
         time.sleep(timer)  # Sleep for the specified interval before checking again.   
@@ -188,15 +186,7 @@ def main():
     client_id = args.clientid
     client_secret = args.clientsecret
 
-    print(
-        "Checking for",
-        user,
-        "every",
-        timer,
-        "seconds. Record with",
-        quality,
-        "quality.",
-    )
+    logger.info(f"Checking for {user} every {timer} seconds. Record with {quality} quality.")
     loopcheck()
 
 
