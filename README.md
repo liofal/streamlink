@@ -11,6 +11,10 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 # Notes
 
+## 2.1.0
+Migration to ghcr.io, please adapt your links!
+github actions automatic build with kaniko
+
 ## 2.0.2 - 2.0.3
 solved bug of env args being ignored [#10](https://github.com/liofal/streamlink/issues/10)
 thanks to [too-many-bees](https://github.com/too-many-bees) for raising it up.
