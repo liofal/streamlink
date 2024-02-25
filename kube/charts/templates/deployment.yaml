@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlink-{{ .Values.streamer.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streamlink-{{ .Values.streamer.name }}
+  template: 
+    metadata:
+      labels:
+        app: streamlink-{{ .Values.streamer.name }}
+    spec:
+      serviceAccountName: streamlink-{{ .Values.streamer.name }}
+      containers:
+      - name: streamlink-{{ .Values.streamer.name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        envFrom:
+        - configMapRef:
+            name: streamlink-config-{{ .Values.streamer.name }}
+        volumeMounts:
+        - name: download-volume
+          mountPath: /app/download
+      restartPolicy: Always
+      volumes:
+      - name: download-volume
+        nfs:
+          server: {{ .Values.nfs.server }}
+          path: {{ .Values.nfs.path }}

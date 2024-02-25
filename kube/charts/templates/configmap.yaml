@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: streamlink-config-{{ .Values.streamer.name }}
+
+data:
+  user: "{{ .Values.streamer.twitchName }}"
+  quality: "{{ .Values.streamer.quality }}"
+  timer: "{{ .Values.streamer.timer }}"
+
+  clientid: "{{ .Values.twitch.clientid }}"
+  clientsecret: "{{ .Values.twitch.clientsecret }}"
+
+  slackid: "{{ .Values.slack.id }}"
+
+  twitchaccountauth: "{{ .Values.twitch.accountauth }}"

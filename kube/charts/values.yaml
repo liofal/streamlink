@@ -1,0 +1,22 @@
+image:
+  repository: ghcr.io/liofal/streamlink
+  tag: master
+  pullPolicy: Always
+
+streamer:
+  name: "<name_here>"
+  twitchName: "<twitch_name_here>"
+  quality: "best"
+  timer: 120
+
+twitch:
+  clientid: "<value_here>"
+  clientsecret: "<value_here>"
+  accountauth: "<value_here>"
+
+slack:
+  id: "<value_here>"
+
+nfs:
+  server: <server_ip_here>
+  path: /<volume>/<folder>

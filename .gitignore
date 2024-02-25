@@ -1,1 +1,4 @@
 /clientid.env
+kube/charts/values-*.yaml
+kube/deploy.sh
+kube/undeploy.sh
