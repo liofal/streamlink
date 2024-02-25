@@ -11,7 +11,7 @@ import json
 import os
 import re
 
-from threading import Timer
+import time
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 
@@ -102,37 +102,35 @@ def check_user(user):
 
 def loopcheck():
     """this function orchestrate in a loop and will check and trigger download until interrupted"""
-    status, title = check_user(user)
-    if status == 2:
-        print("username not found. invalid username?")
-        return
-    elif status == 3:
-        print("unexpected error. maybe try again later")
-    elif status == 1:
-        print(f"{user} currently offline, checking again in {timer} seconds")
-    elif status == 4:
-        print(f"Unwanted game stream, checking again in {timer} seconds")
-    elif status == 0:
-        filename = f"{user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {title}.mp4"
+    while True:  # Use a continuous loop.
+        status, title = check_user(user)
+        if status == 2:
+            print("username not found. invalid username?")
+        elif status == 3:
+            print("unexpected error. maybe try again later")
+        elif status == 1:
+            print(f"{user} currently offline, checking again in {timer} seconds")
+        elif status == 4:
+            print(f"Unwanted game stream, checking again in {timer} seconds")
+        elif status == 0:
+            filename = f"{user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {title}.mp4"
 
-        # Remove any character that is not a letter, a digit, a space, or one of these characters: -_.:
-        filename = re.sub(r"[^\w\s._:-]", "", filename)
-        recorded_filename = os.path.join("./download/", filename)
+            # Remove any character that is not a letter, a digit, a space, or one of these characters: -_.:
+            filename = re.sub(r"[^\w\s._:-]", "", filename)
+            recorded_filename = os.path.join("./download/", filename)
 
-        # start streamlink process
-        message = f"recording {user} ..."
-        post_to_slack(message)
-        print(message)
-        run_streamlink(twitch_account_auth, user, quality, recorded_filename)
-        message = (
-            f"Stream {user} is done. File saved as {filename}. Going back to checking.."
-        )
-        print(message)
-        post_to_slack(message)
+            # start streamlink process
+            message = f"recording {user} ..."
+            post_to_slack(message)
+            print(message)
+            run_streamlink(twitch_account_auth, user, quality, recorded_filename)
+            message = (
+                f"Stream {user} is done. File saved as {filename}. Going back to checking.."
+            )
+            print(message)
+            post_to_slack(message)
 
-    t = Timer(timer, loopcheck)
-    t.start()
-
+        time.sleep(timer)  # Sleep for the specified interval before checking again.   
 
 def run_streamlink(twitch_account_auth, user, quality, recorded_filename):
     command = [
