@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 FROM base as runner
 COPY --from=builder /install /usr/local
 COPY streamlink-recorder.py .
+COPY twitch_manager.py .
+COPY streamlink_manager.py .
+COPY notification_manager.py .
 
 # Set the entrypoint
-ENTRYPOINT python ./streamlink-recorder.py -user=${user} -timer=${timer} -quality=${quality} -clientid=${clientid} -clientsecret=${clientsecret} -slackid=${slackid} -gamelist="${gamelist}" -twitchaccountauth=${twitchaccountauth}
+ENTRYPOINT python ./streamlink-recorder.py -user=${user} -timer=${timer} -quality=${quality} -clientid=${clientid} -clientsecret=${clientsecret} -slackid=${slackid} -gamelist="${gamelist}" -twitchaccountauth=${twitchaccountauth} -telegramchatid=${telegramchatid} -telegrambottoken=${telegrambottoken}
