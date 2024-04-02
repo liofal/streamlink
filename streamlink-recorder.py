@@ -2,194 +2,76 @@
 This script checks if a user on twitch is currently streaming and 
 then records the stream via streamlink
 """
-import subprocess
 import datetime
 import argparse
-
-
 import json
 import os
 import re
-
 import time
-from oauthlib.oauth2 import BackendApplicationClient
-from requests_oauthlib import OAuth2Session
-
-import requests
-
 import logging
 import sys
+
+from twitch_manager import TwitchManager, StreamStatus
+from streamlink_manager import StreamlinkManager
+from notification_manager import NotificationManager
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def post_to_slack(message):
-    """this function is in charge of the slack notification"""
-    if slack_id is None:
-        logger.info("slackid is not specified, so disabling slack notification")
+class AppConfig:
+    def __init__(self, args):
+        self.timer = args.timer
+        self.user = args.user
+        self.quality = args.quality
+        self.client_id = args.clientid
+        self.client_secret = args.clientsecret
+        self.game_list = args.gamelist
+        self.twitch_account_auth = args.twitchaccountauth
+        self.slack_id = args.slackid
+        self.telegram_bot_token = args.telegrambottoken
+        self.telegram_chat_id = args.telegramchatid
 
-    slack_url = f"https://hooks.slack.com/services/{slack_id}"
-    slack_data = {"text": message}
+def loop_check(config):
+    twitch_manager = TwitchManager(config)
+    streamlink_manager = StreamlinkManager(config)
+    notifier_manager = NotificationManager(config)
 
-    try:
-        response = requests.post(
-            slack_url,
-            data=json.dumps(slack_data),
-            headers={"Content-Type": "application/json"},
-            timeout=30,
-        )
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        raise ValueError(
-            f"Request to slack returned an error {response.status_code}, "
-            f"the response is:\n{response.text}"
-        )
-    except Exception as e:
-        logger.error(f"Error occurred while sending message to Slack: {e}")
-
-
-def get_from_twitch(operation):
-    """this function encapsulates all get operation to the twitch API and manages authentication"""
-    client = BackendApplicationClient(client_id=client_id)
-    oauth = OAuth2Session(client=client)
-    oauth.fetch_token(
-        token_url="https://id.twitch.tv/oauth2/token",
-        client_id=client_id,
-        client_secret=client_secret,
-        include_client_id=True,
-    )
-
-    url = "https://api.twitch.tv/helix/" + operation
-    response = oauth.get(
-        url, headers={"Accept": "application/json", "Client-ID": client_id}
-    )
-
-    if response.status_code != 200:
-        raise ValueError(
-            f"Request to twitch returned an error {response.status_code}, "
-            f"the response is:\n{response.text}"
-        )
-    try:
-        info = json.loads(response.content)
-        # print(json.dumps(info, indent=4, sort_keys=True))
-    except Exception as e:
-        logger.error(e)
-    return info
-
-
-def check_user(user):
-    """this function checks if a user is online"""
-    title = ""
-    status = 3
-    try:
-        info = get_from_twitch("streams?user_login=" + user)
-        if len(info["data"]) == 0:
-            status = 1
-        elif game_list != "" and info["data"][0].get("game_id") not in game_list.split(
-            ","
-        ):
-            status = 4
-        else:
-            title = info["data"][0].get("title")
-            status = 0
-    except Exception as e:
-        logger.error(e)
-        status = 3
-    return status, title
-
-
-def loopcheck():
-    """this function orchestrate in a loop and will check and trigger download until interrupted"""
-    while True:  # Use a continuous loop.
-        status, title = check_user(user)
-        if status == 2:
-            logger.info("username not found. invalid username?")
-        elif status == 3:
-            logger.info("unexpected error. maybe try again later")
-        elif status == 1:
-            logger.info(f"{user} currently offline, checking again in {timer} seconds")
-        elif status == 4:
-            logger.info(f"Unwanted game stream, checking again in {timer} seconds")
-        elif status == 0:
-            filename = f"{user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {title}.mp4"
-
-            # Remove any character that is not a letter, a digit, a space, or one of these characters: -_.:
-            filename = re.sub(r"[^\w\s._:-]", "", filename)
+    while True:
+        stream_status, title = twitch_manager.check_user(config.user)
+        if stream_status == StreamStatus.ONLINE:
+            safe_title = re.sub(r"[^\w\s._:-]", "", title)
+            safe_title = os.path.basename(safe_title)
+            filename = f"{config.user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {safe_title}.mp4"
             recorded_filename = os.path.join("./download/", filename)
-
-            # start streamlink process
-            message = f"recording {user} ..."
-            post_to_slack(message)
+            message = f"Recording {config.user} ..."
+            notifier_manager.notify_all(message)
             logger.info(message)
-            run_streamlink(twitch_account_auth, user, quality, recorded_filename)
-            message = (
-                f"Stream {user} is done. File saved as {filename}. Going back to checking.."
-            )
+            streamlink_manager.run_streamlink(config.user, recorded_filename)
+            message = f"Stream {config.user} is done. File saved as {filename}. Going back to checking.."
             logger.info(message)
-            post_to_slack(message)
+            notifier_manager.notify_all(message)
+        time.sleep(config.timer)
 
-        time.sleep(timer)  # Sleep for the specified interval before checking again.   
-
-def run_streamlink(twitch_account_auth, user, quality, recorded_filename):
-    command = [
-        "streamlink",
-        "--twitch-disable-hosting",
-        "--retry-max",
-        "5",
-        "--retry-streams",
-        "60",
-        f"twitch.tv/{user}",
-        quality,
-        "-o",
-        recorded_filename,
-    ]
-    if twitch_account_auth:
-        command.insert(
-            1, f"--twitch-api-header=Authorization=OAuth {twitch_account_auth}"
-        )
-    subprocess.run(command)
-
-
-def main():
-    """main function parse and check the arguments and will initiate the loop check if valid"""
-    global timer, user, quality, client_id, client_secret, slack_id, game_list, twitch_account_auth
-
+def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-timer",
-        type=int,
-        default=240,
-        help="Stream check interval (less than 15s are not recommended)",
-    )
+    parser.add_argument("-timer", type=int, default=240, help="Stream check interval (less than 15s are not recommended)")
     parser.add_argument("-user", required=True, help="Twitch user that we are checking")
-    parser.add_argument(
-        "-quality", default="720p60,720p,best", help="Recording quality"
-    )
-    parser.add_argument("-clientid", required=True, help="Your twitch app client id")
-    parser.add_argument(
-        "-clientsecret", required=True, help="Your twitch app client secret"
-    )
+    parser.add_argument("-quality", default="720p60,720p,best", help="Recording quality")
+    parser.add_argument("-clientid", required=True, help="Your Twitch app client id")
+    parser.add_argument("-clientsecret", required=True, help="Your Twitch app client secret")
     parser.add_argument("-slackid", help="Your slack app client id")
     parser.add_argument("-gamelist", default="", help="The game list to be recorded")
-    parser.add_argument(
-        "-twitchaccountauth",
-        help="Twitch personal account token. To disable embedded ads",
-    )
+    parser.add_argument("-twitchaccountauth", help="Twitch personal account token. To disable embedded ads")
+    parser.add_argument("-telegrambottoken", help="Your Telegram bot token")
+    parser.add_argument("-telegramchatid", help="Your Telegram chat ID where the bot will send messages")
     args = parser.parse_args()
 
-    timer = args.timer
-    user = args.user
-    quality = args.quality
-    slack_id = args.slackid
-    game_list = args.gamelist
-    twitch_account_auth = args.twitchaccountauth
-    client_id = args.clientid
-    client_secret = args.clientsecret
+    return AppConfig(args)
 
-    logger.info(f"Checking for {user} every {timer} seconds. Record with {quality} quality.")
-    loopcheck()
-
+def main():
+    config = parse_arguments()
+    logger.info(f"Checking for {config.user} every {config.timer} seconds. Record with {config.quality} quality.")
+    loop_check(config)
 
 if __name__ == "__main__":
-    # execute only if run as a script
     main()

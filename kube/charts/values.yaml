@@ -17,6 +17,10 @@ twitch:
 slack:
   id: "<value_here>"
 
+telegram:
+  bottoken: "<value_here>"
+  chatid: "<value_here>"
+
 nfs:
   server: <server_ip_here>
   path: /<volume>/<folder>

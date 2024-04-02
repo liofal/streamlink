@@ -11,6 +11,15 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 # Notes
 
+## 3.0.0
+Introduced Twitch API integration for improved stream monitoring.
+
+Added support for notification via Telegram, as requested in [issue #1](https://github.com/liofal/streamlink/issues/1).
+
+Refactored the notification system to support multiple platforms, including Slack and Telegram.
+
+Major code refactor for better modularity and readability, including the use of classes for Twitch, Streamlink, and notification management.
+
 ## 2.1.0
 Migration to ghcr.io, please adapt your links!
 

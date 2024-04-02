@@ -13,4 +13,7 @@ data:
 
   slackid: "{{ .Values.slack.id }}"
 
+  telegrambottoken: "{{ .Values.telegram.bottoken }}"
+  telegramchatid: "{{ .Values.telegram.chatid }}"
+
   twitchaccountauth: "{{ .Values.twitch.accountauth }}"
