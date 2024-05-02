@@ -37,6 +37,14 @@ jobs:
           WITH_V: true
           DRY_RUN: true
         id: tag
+      - name: Docker Scout
+        id: docker-scout
+        uses: docker/scout-action@v1.4.0
+        with:
+          command: cves
+          image: ${{ steps.meta.outputs.tags }}
+          only-severities: critical,high
+          exit-code: true
 
   deploy:
     needs: build
