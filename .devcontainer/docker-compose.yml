@@ -21,4 +21,4 @@ services:
     volumes:
       - ..:/app
     entrypoint: /bin/sh -c "while sleep 1000; do :; done"
-    profiles: ["improve"]
+    profiles: ["aider"]
