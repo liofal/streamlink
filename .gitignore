@@ -2,3 +2,4 @@
 kube/charts/values-*.yaml
 kube/deploy.sh
 kube/undeploy.sh
+__pycache__
