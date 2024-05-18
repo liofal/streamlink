@@ -28,7 +28,7 @@ jobs:
           pip install flake8
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
       - name: Bump version and push tag
-        if: github.ref == 'refs/heads/master'
+        id: tag_version
         uses: anothrNick/github-tag-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,11 +66,11 @@ jobs:
       - name: Output image tags
         run: |
           echo "Images to be deployed:"
-          echo "ghcr.io/${{ github.repository }}:${{ steps.tag_version.outputs.new_tag }}"
+          echo "ghcr.io/${{ github.repository }}:${{ env.VERSION }}"
           echo "ghcr.io/${{ github.repository }}:latest"
       - name: Output DockerHub image tags
         run: |
           echo "Images to be deployed:"
-          echo "docker.io/${{ github.repository }}:${{ steps.tag_version.outputs.new_tag }}"
+          echo "docker.io/${{ github.repository }}:${{ env.VERSION }}"
           echo "docker.io/${{ github.repository }}:latest"
 
