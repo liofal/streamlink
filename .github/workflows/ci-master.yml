@@ -5,33 +5,6 @@ on:
     branches: [ beta ]
 
 jobs:
-  deploy-ghcr:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Extract version from docker-compose
-        id: extract_version
-        run: |
-          VERSION=$(grep 'image:' docker-compose.yml | sed 's/.*://')
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-      - uses: docker/metadata-action@v5
-        id: metadata
-        with:
-          images: |
-            ghcr.io/${{ github.repository }}:${{ env.VERSION }}
-            ghcr.io/${{ github.repository }}:latest
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: int128/kaniko-action@v3
-        with:
-          push: true
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
-          cache: true
-          cache-repository: ghcr.io/${{ github.repository }}/cache
-
   deploy-dockerio:
     runs-on: ubuntu-latest
     steps:
