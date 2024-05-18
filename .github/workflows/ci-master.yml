@@ -1,10 +1,8 @@
-name: Validate development changes
+name: Build docker image with kaniko
 
 on:
-  pull_request:
-    branches: [ master ]
   push:
-    branches: [ beta ]
+    branches: [ master ]
 
 jobs:
   validate:
@@ -50,7 +48,7 @@ jobs:
           only-severities: critical,high
           exit-code: true
 
-  dry-run:
+  deploy-ghcr:
     needs: validate
     runs-on: ubuntu-latest
     steps:
@@ -62,14 +60,34 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Output image tags
-        run: |
-          echo "Images to be deployed:"
-          echo "ghcr.io/${{ github.repository }}:${{ env.VERSION }}"
-          echo "ghcr.io/${{ github.repository }}:latest"
-      - name: Output DockerHub image tags
-        run: |
-          echo "Images to be deployed:"
-          echo "docker.io/${{ github.repository }}:${{ env.VERSION }}"
-          echo "docker.io/${{ github.repository }}:latest"
+      - uses: int128/kaniko-action@v3
+        with:
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache: true
+          cache-repository: ghcr.io/${{ github.repository }}/cache
 
+  deploy-dockerio:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/metadata-action@v5
+        id: metadata
+        with:
+          images: |
+            docker.io/${{ github.repository }}:${{ steps.tag_version.outputs.new_tag }}
+            docker.io/${{ github.repository }}:latest
+      - uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - uses: int128/kaniko-action@v1
+        with:
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache: true
+          cache-repository: liofal/streamlink/cache
