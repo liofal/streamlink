@@ -27,5 +27,3 @@ services:
     environment:
       - user=${TWITCH}
       - quality=best
-
-      
