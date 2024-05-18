@@ -27,7 +27,7 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
       - name: Bump version and push tag
         id: tag_version
-        uses: anothrNick/github-tag-action@v2
+        uses: anothrNick/github-tag-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEFAULT_BUMP: patch
@@ -41,7 +41,7 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }} 
       - name: Docker Scout
         id: docker-scout
-        uses: docker/scout-action@v2
+        uses: docker/scout-action@v1
         with:
           command: cves
           image: ${{ steps.meta.outputs.tags }}
