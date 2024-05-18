@@ -37,7 +37,7 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set version output
         run: echo "VERSION=${{ steps.extract_version.outputs.VERSION }}" >> $GITHUB_ENV
       - uses: docker/login-action@v3
