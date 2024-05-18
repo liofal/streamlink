@@ -2,9 +2,9 @@ name: Build docker image with kaniko
 
 on:
   push:
-    branches: [ master, beta ]
-  pull_request:
-    branches: [ master, beta ]
+    branches: [ beta ]
+  tags:
+    branches: [ beta ]
 
 jobs:
   deploy-ghcr:
@@ -53,6 +53,7 @@ jobs:
 
   validate:
     runs-on: ubuntu-latest
+    needs: deploy-dockerio,deploy-ghcr
     steps:
       - uses: actions/checkout@v4
       - name: Login to DockerHub
