@@ -7,36 +7,54 @@ on:
     branches: [ master, beta ]
 
 jobs:
-  build:
+  deploy-ghcr:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: docker/metadata-action@v5
+        id: metadata
         with:
-          python-version: '3.12'
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Format code with black
-        run: |
-          pip install black
-          black .
-      - name: Lint with flake8
-        run: |
-          pip install flake8
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-      - name: Bump version and push tag
-        if: github.ref == 'refs/heads/master'
-        uses: anothrNick/github-tag-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEFAULT_BUMP: patch
-          RELEASE_BRANCHES: master
-          WITH_V: true
-          DRY_RUN: true
-        id: tag
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch,branch=master,tag=latest
+            type=ref,event=tag
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: int128/kaniko-action@v1
+        with:
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+
+  deploy-dockerio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/metadata-action@v5
+        id: metadata
+        with:
+          images: docker.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch,branch=master,tag=latest
+            type=ref,event=tag
+      - uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - uses: int128/kaniko-action@v1
+        with:
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
@@ -51,47 +69,3 @@ jobs:
           image: ${{ steps.meta.outputs.tags }}
           only-severities: critical,high
           exit-code: true
-
-  deploy-ghcr:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/metadata-action@v5
-        id: metadata
-        with:
-          images: ghcr.io/${{ github.repository }}
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: int128/kaniko-action@v1
-        with:
-          push: true
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
-          cache: true
-          cache-repository: ghcr.io/${{ github.repository }}/cache
-
-  deploy-dockerio:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/metadata-action@v5
-        id: metadata
-        with:
-          images: docker.io/${{ github.repository }}
-      - uses: docker/login-action@v3
-        with:
-          registry: docker.io
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-      - uses: int128/kaniko-action@v1
-        with:
-          push: true
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
-          cache: true
-          cache-repository: liofal/streamlink/cache
