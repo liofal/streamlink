@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/liofal/streamlink
-  tag: master
+  tag: latest
   pullPolicy: Always
 
 streamer:
