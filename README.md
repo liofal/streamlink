@@ -11,9 +11,10 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 # Notes
 
-## 3.1.0
+## 3.1.0 - 3.1.1
 Automatic build and deployment pipeline to both ghcr and docker hub.
 With tag versioning and latest tagging.
+Remove broken support for oauth twitch token, will soon migrate to new model
 
 ## 3.0.0
 Introduced Twitch API integration for improved stream monitoring.
@@ -91,15 +92,6 @@ Fill in twitch clientid to interact with twitch API and retrieve status of strea
 Fill in twitch clientsecret to interact with twitch API and retrieve status of stream from stream list
 
     clientsecret=xxxxxxxx
-
-## twitchaccountauth
-Fill in twitch account token(it is different from client token)
-
-This is for disabling embedded ads, if you're a subscriber of the target streamer.
-
-You can find how to get this token on [Streamlink Documentation](https://streamlink.github.io/cli/plugins/twitch.html).
-
-    twitchaccountauth=xxxxxxxxxx
 
 ## slackid
 Fill in slack if you want recod start/stop notification

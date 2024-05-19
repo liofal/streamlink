@@ -22,4 +22,4 @@ RUN python -m pip uninstall -y pip setuptools \
     && rm -rf /usr/local/lib/python3.*/ensurepip
 
 # Set the entrypoint
-ENTRYPOINT python ./streamlink-recorder.py -user=${user} -timer=${timer} -quality=${quality} -clientid=${clientid} -clientsecret=${clientsecret} -slackid=${slackid} -gamelist="${gamelist}" -twitchaccountauth=${twitchaccountauth} -telegramchatid=${telegramchatid} -telegrambottoken=${telegrambottoken}
+ENTRYPOINT python ./streamlink-recorder.py -user=${user} -timer=${timer} -quality=${quality} -clientid=${clientid} -clientsecret=${clientsecret} -slackid=${slackid} -gamelist="${gamelist}" -telegramchatid=${telegramchatid} -telegrambottoken=${telegrambottoken}

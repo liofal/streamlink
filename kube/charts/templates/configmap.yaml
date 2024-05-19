@@ -15,5 +15,3 @@ data:
 
   telegrambottoken: "{{ .Values.telegram.bottoken }}"
   telegramchatid: "{{ .Values.telegram.chatid }}"
-
-  twitchaccountauth: "{{ .Values.twitch.accountauth }}"

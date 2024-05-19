@@ -4,7 +4,6 @@ then records the stream via streamlink
 """
 import datetime
 import argparse
-import json
 import os
 import re
 import time
@@ -26,7 +25,6 @@ class AppConfig:
         self.client_id = args.clientid
         self.client_secret = args.clientsecret
         self.game_list = args.gamelist
-        self.twitch_account_auth = args.twitchaccountauth
         self.slack_id = args.slackid
         self.telegram_bot_token = args.telegrambottoken
         self.telegram_chat_id = args.telegramchatid
@@ -61,7 +59,6 @@ def parse_arguments():
     parser.add_argument("-clientsecret", required=True, help="Your Twitch app client secret")
     parser.add_argument("-slackid", help="Your slack app client id")
     parser.add_argument("-gamelist", default="", help="The game list to be recorded")
-    parser.add_argument("-twitchaccountauth", help="Twitch personal account token. To disable embedded ads")
     parser.add_argument("-telegrambottoken", help="Your Telegram bot token")
     parser.add_argument("-telegramchatid", help="Your Telegram chat ID where the bot will send messages")
     args = parser.parse_args()

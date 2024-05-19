@@ -10,8 +10,6 @@ class StreamlinkManager:
         session.set_option("twitch-disable-hosting", True)
         session.set_option("retry-max", 5)
         session.set_option("retry-streams", 60)
-        if self.config.twitch_account_auth:
-            session.set_plugin_option("twitch", "oauth-token", self.config.twitch_account_auth)
 
         quality = self.config.quality
         streams = session.streams(f"twitch.tv/{user}")
