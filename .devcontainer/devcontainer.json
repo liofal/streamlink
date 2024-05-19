@@ -6,7 +6,15 @@
 	"service": "dev",
 	"runServices": ["dev"],
 	"postCreateCommand": "pip install -r requirements.txt",
-	"workspaceFolder": "/app"
+	"workspaceFolder": "/app",
+	"customizations": {
+		"vscode": {
+		  "settings": {
+			"terminal.integrated.shell.linux": "/bin/bash",
+			"terminal.integrated.defaultProfile.linux": "bash"
+		  }
+		}
+	}
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
