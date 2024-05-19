@@ -1,7 +1,7 @@
 version: '3.7'
 
 x-common: &common
-    image: ghcr.io/liofal/streamlink:3.0.0
+    image: ghcr.io/liofal/streamlink:3.1.0
     build:
       context: .
       dockerfile: Dockerfile

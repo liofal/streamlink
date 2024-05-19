@@ -11,6 +11,10 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 # Notes
 
+## 3.1.0
+Automatic build and deployment pipeline to both ghcr and docker hub.
+With tag versioning and latest tagging.
+
 ## 3.0.0
 Introduced Twitch API integration for improved stream monitoring.
 
