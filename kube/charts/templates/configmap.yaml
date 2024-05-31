@@ -10,6 +10,7 @@ data:
 
   clientid: "{{ .Values.twitch.clientid }}"
   clientsecret: "{{ .Values.twitch.clientsecret }}"
+  oauthtoken: "{{ .Values.twitch.oauthtoken }}"
 
   slackid: "{{ .Values.slack.id }}"
 

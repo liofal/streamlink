@@ -12,6 +12,7 @@ streamer:
 twitch:
   clientid: "<value_here>"
   clientsecret: "<value_here>"
+  oauthtoken: "<value_here>"
 
 slack:
   id: "<value_here>"

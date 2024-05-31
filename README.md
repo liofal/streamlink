@@ -11,6 +11,9 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 # Notes
 
+## 3.2.0
+Added support for optional OAuth token parameter to authenticate Twitch API requests.
+
 ## 3.1.0 - 3.1.1
 Automatic build and deployment pipeline to both ghcr and docker hub.
 With tag versioning and latest tagging.
@@ -97,6 +100,18 @@ Fill in twitch clientsecret to interact with twitch API and retrieve status of s
 Fill in slack if you want recod start/stop notification
 
     slackid=xxxxxxxxx
+
+## oauthtoken
+Fill in your OAuth token for Twitch API to authenticate requests. The procedure to collect the OAuth token is described [here](https://streamlink.github.io/cli/plugins/twitch.html) 
+
+    oauthtoken=xxxxxxxx
+
+In order to get the personal OAuth token from Twitch's website which identifies your account, open Twitch.tv in your web browser and after a successful login, open the developer tools by pressing F12 or CTRL+SHIFT+I. Then navigate to the "Console" tab or its equivalent of your web browser and execute the following JavaScript snippet, which reads the value of the auth-token cookie, if it exists:
+
+```javascript
+document.cookie.split("; ").find(item=>item.startsWith("auth-token="))?.split("=")[1]
+```
+
 
 # Docker
     docker run -d --rm \

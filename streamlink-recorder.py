@@ -28,6 +28,7 @@ class AppConfig:
         self.slack_id = args.slackid
         self.telegram_bot_token = args.telegrambottoken
         self.telegram_chat_id = args.telegramchatid
+        self.oauth_token = args.oauthtoken
 
 def loop_check(config):
     twitch_manager = TwitchManager(config)
@@ -61,6 +62,7 @@ def parse_arguments():
     parser.add_argument("-gamelist", default="", help="The game list to be recorded")
     parser.add_argument("-telegrambottoken", help="Your Telegram bot token")
     parser.add_argument("-telegramchatid", help="Your Telegram chat ID where the bot will send messages")
+    parser.add_argument("-oauthtoken", help="Your OAuth token for Twitch API")
     args = parser.parse_args()
 
     return AppConfig(args)
