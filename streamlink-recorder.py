@@ -9,6 +9,7 @@ import re
 import time
 import logging
 import sys
+import subprocess
 
 from twitch_manager import TwitchManager, StreamStatus
 from streamlink_manager import StreamlinkManager
@@ -30,6 +31,9 @@ class AppConfig:
         self.telegram_chat_id = args.telegramchatid
         self.oauth_token = args.oauthtoken
 
+def convert_to_mp4(recorded_filename_ts, recorded_filename_mp4):
+    subprocess.Popen(f"ffmpeg -i '{recorded_filename_ts}' -c copy '{recorded_filename_mp4}' && rm '{recorded_filename_ts}'", shell=True)
+
 def loop_check(config):
     twitch_manager = TwitchManager(config)
     streamlink_manager = StreamlinkManager(config)
@@ -40,13 +44,17 @@ def loop_check(config):
         if stream_status == StreamStatus.ONLINE:
             safe_title = re.sub(r"[^\w\s._:-]", "", title)
             safe_title = os.path.basename(safe_title)
-            filename = f"{config.user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {safe_title}.mp4"
-            recorded_filename = os.path.join("./download/", filename)
+            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')
+            ts_filename = f"{config.user} - {timestamp} - {safe_title}.ts"
+            mp4_filename = f"{config.user} - {timestamp} - {safe_title}.mp4"
+            ts_filepath = os.path.join("./download/", ts_filename)
+            mp4_filepath = os.path.join("./download/", mp4_filename)
             message = f"Recording {config.user} ..."
             notifier_manager.notify_all(message)
             logger.info(message)
-            streamlink_manager.run_streamlink(config.user, recorded_filename)
-            message = f"Stream {config.user} is done. File saved as {filename}. Going back to checking.."
+            streamlink_manager.run_streamlink(config.user, ts_filepath)
+            convert_to_mp4(ts_filepath, mp4_filepath)
+            message = f"Stream {config.user} is done. File saved as {ts_filename}. Starting conversion to {mp4_filename}. Going back to checking.."
             logger.info(message)
             notifier_manager.notify_all(message)
         time.sleep(config.timer)

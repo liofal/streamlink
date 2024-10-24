@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # Runner stage for the final image
 FROM base as runner
 COPY --from=builder /install /usr/local
+RUN apk add --no-cache ffmpeg
 COPY streamlink-recorder.py .
 COPY twitch_manager.py .
 COPY streamlink_manager.py .
