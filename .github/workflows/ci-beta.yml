@@ -19,6 +19,7 @@ jobs:
         tags: |
           type=ref,event=tag
           type=ref,event=branch,branch=master,compat=true
+          type=raw,value=latest,event=tag
     - uses: docker/login-action@v3
       with:
         registry: ghcr.io
@@ -42,6 +43,7 @@ jobs:
         tags: |
           type=ref,event=tag
           type=ref,event=branch,branch=master,compat=true
+          type=raw,value=latest,event=tag
     - uses: docker/login-action@v3
       with:
         registry: docker.io
