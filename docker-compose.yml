@@ -28,12 +28,4 @@ services:
       - user=${TWITCH}
       - quality=best
 
-  streamlink-latest:
-    <<: *common
-    container_name: streamlink-latest_${TWITCH}
-    image: ghcr.io/liofal/streamlink:latest
-    environment:
-      - user=${TWITCH}
-      - quality=best
-
       
