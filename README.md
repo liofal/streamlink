@@ -11,7 +11,7 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 # Notes
 
-## 3.3.0
+## 3.3.1
 Bump up versions dependencies.
 requests==2.32.3
 streamlink==7.1.1
