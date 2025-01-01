@@ -11,6 +11,14 @@ I'm also interested with new projects for automation of daily popular tasks, don
 
 # Notes
 
+## 3.3.0
+Bump up versions dependencies.
+requests==2.32.3
+streamlink==7.1.1
+twitchAPI==4.4.0
+
+And activate renovate for automatic dependencies upgrade, be aware of that setup
+
 ## 3.2.0
 Added support for optional OAuth token parameter to authenticate Twitch API requests.
 
