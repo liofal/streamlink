@@ -9,6 +9,16 @@ Questions, suggestions, requests, reach me out on [![alt text][1.1]][1]
 
 I'm also interested with new projects for automation of daily popular tasks, don't hesitate, I'm waiting for new ideas
 
+# ⚠️ Disclaimer ⚠️
+We have renamed the master branch to main for clarity and to follow best practices. Please reconfigure your branch origin with the following commands:
+
+```sh
+git branch -m master main
+git fetch origin
+git branch -u origin/main main
+git remote set-head origin -a
+```
+
 # Notes
 
 ## 3.3.1
