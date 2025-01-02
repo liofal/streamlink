@@ -1,0 +1,14 @@
+name: Build docker images with reusable actions.
+
+on:
+  push:
+    branches: [ beta, main ]
+    tags:
+      - '*'
+
+jobs:
+  deploy:
+    uses: liofal/actions/.github/workflows/build_and_deploy.yml@main
+    permissions:
+      packages: write
+    secrets: inherit
