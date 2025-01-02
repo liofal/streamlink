@@ -1,14 +1,4 @@
-version: '3.7'
-
 x-common: &common
-    image: ghcr.io/liofal/streamlink:3.3.1
-    build:
-      context: .
-      dockerfile: Dockerfile
-    env_file: 
-        # - ../global.env    
-        - default.env
-        - clientid.env
     user: 1027:100
     logging:
       driver: json-file
@@ -23,9 +13,26 @@ x-common: &common
 services:
   streamlink:
     <<: *common
+    image: ghcr.io/liofal/streamlink:3.3.2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: 
+        # - ../global.env    
+        - default.env
+        - clientid.env
     container_name: streamlink_${TWITCH}
     environment:
       - user=${TWITCH}
       - quality=best
 
-      
+  ffmpeg:
+    <<: *common
+    image: ghcr.io/liofal/ffmpeg6:1.0.0
+    container_name: ffmpeg_converter
+    environment:
+      - SLEEPTIME=600
+      - WORKDIR=/app/download
+    
+    restart: unless-stopped
+  
