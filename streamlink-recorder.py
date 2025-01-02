@@ -40,7 +40,7 @@ def loop_check(config):
         if stream_status == StreamStatus.ONLINE:
             safe_title = re.sub(r"[^\w\s._:-]", "", title)
             safe_title = os.path.basename(safe_title)
-            filename = f"{config.user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {safe_title}.mp4"
+            filename = f"{config.user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {safe_title}"
             recorded_filename = os.path.join("./download/", filename)
             message = f"Recording {config.user} ..."
             notifier_manager.notify_all(message)
