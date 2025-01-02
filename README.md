@@ -21,13 +21,18 @@ git remote set-head origin -a
 
 # Notes
 
+## 3.3.2
+Refactor filename generation and add support for dynamic stream extensions in StreamlinkManager, in reference to improvement suggestion by [thematuu](https://github.com/thematuu) in [PR20](https://github.com/liofal/streamlink/pull/20)
+
+Add sidecar container for ffmpeg converstion to mp4 of .ts files.
+
 ## 3.3.1
 Bump up versions dependencies.
-requests==2.32.3
-streamlink==7.1.1
-twitchAPI==4.4.0
+* requests==2.32.3
+* streamlink==7.1.1
+* twitchAPI==4.4.0
 
-And activate renovate for automatic dependencies upgrade, be aware of that setup
+And activate renovate for automatic dependencies upgrade, be aware of that setup and use automatic trigger of "latest" dockerimage replacement.
 
 ## 3.2.0
 Added support for optional OAuth token parameter to authenticate Twitch API requests.
