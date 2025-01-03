@@ -135,7 +135,6 @@ In order to get the personal OAuth token from Twitch's website which identifies 
 document.cookie.split("; ").find(item=>item.startsWith("auth-token="))?.split("=")[1]
 ```
 
-
 # Docker
     docker run -d --rm \
     -v twitch:/download \
@@ -165,6 +164,90 @@ you can specify the default for compose here
 
 _**Warning:** The folder does not exist in the container and need te be created as a volume in order to be accessed from outside your container, you should map it if you want to access it_
 
+## FFmpeg Conversion
+
+The `docker-compose.yml` file includes an FFmpeg service that automatically converts TS container files to MP4. The FFmpeg service is configured to run periodically and process files in the `/app/download` directory.
+
+- The `SLEEPTIME` environment variable defines the interval (in seconds) between conversion checks. By default, it is set to 600 seconds (10 minutes).
+- The `WORKDIR` environment variable specifies the directory where the TS files are located and where the converted MP4 files will be saved.
+
+To customize the FFmpeg conversion settings, you can modify the environment variables in the `docker-compose.yml` file.
+
+# Kubernetes Deployment with Helm
+
+To deploy this project on Kubernetes using Helm, follow these steps:
+
+1. **Create the Namespace:**
+    ```sh
+    kubectl create namespace streamlink
+    ```
+
+2. **Add the Helm Repository:**
+    ```sh
+    helm repo add streamlink https://github.com/liofal/streamlink/kube/charts
+    helm repo update
+    ```
+
+3. **Install the Helm Chart:**
+    ```sh
+    helm install my-streamlink streamlink/streamlink -n streamlink -f /path/to/your/values.yaml
+    ```
+
+    Replace `/path/to/your/values.yaml` with the path to your customized `values.yaml` file.
+
+4. **Customize Your `values.yaml`:**
+    Edit the `values.yaml` file to configure the deployment according to your needs. Here is an example configuration:
+    ```yaml
+    image:
+      streamlink:
+        repository: ghcr.io/liofal
+        name: streamlink
+        tag: 3.3.2
+        pullPolicy: Always
+      ffmpeg: 
+        repository: ghcr.io/liofal
+        name: ffmpeg6
+        tag: 1.0.0
+        pullPolicy: Always
+
+    streamer:
+      name: "<name_here>"
+      twitchName: "<twitch_name_here>"
+      quality: "best"
+      timer: 120
+
+    twitch:
+      clientid: "<value_here>"
+      clientsecret: "<value_here>"
+      oauthtoken: "<value_here>"
+
+    ffmpeg:
+      sleeptime: "<sleeptime_value>"
+      workdir: "<workdir_value>"
+
+    slack:
+      id: "<value_here>"
+
+    telegram:
+      bottoken: "<value_here>"
+      chatid: "<value_here>"
+
+    nfs:
+      server: <server_ip_here>
+      path: /<volume>/<folder>
+    ```
+
+5. **Upgrade the Helm Release:**
+    If you need to apply changes to your deployment, update your `values.yaml` file and run:
+    ```sh
+    helm upgrade my-streamlink streamlink/streamlink -n streamlink -f /path/to/your/values.yaml
+    ```
+
+6. **Uninstall the Helm Release:**
+    To remove the deployment, run:
+    ```sh
+    helm uninstall my-streamlink -n streamlink
+    ```
 
 [1.1]: http://i.imgur.com/tXSoThF.png (twitter icon with padding)
 [1]: http://www.twitter.com/liofal

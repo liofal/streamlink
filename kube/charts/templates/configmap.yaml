@@ -12,7 +12,14 @@ data:
   clientsecret: "{{ .Values.twitch.clientsecret }}"
   oauthtoken: "{{ .Values.twitch.oauthtoken }}"
 
+  {{- if .Values.slack.id }}
   slackid: "{{ .Values.slack.id }}"
+  {{- end }}
 
+  {{- if .Values.telegram.bottoken }}
   telegrambottoken: "{{ .Values.telegram.bottoken }}"
+  {{- end }}
+  
+  {{- if .Values.telegram.chatid }}
   telegramchatid: "{{ .Values.telegram.chatid }}"
+  {{- end }}
