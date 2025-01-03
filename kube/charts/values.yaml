@@ -1,7 +1,14 @@
 image:
-  repository: ghcr.io/liofal/streamlink
-  tag: latest
-  pullPolicy: Always
+  streamlink:
+    repository: ghcr.io/liofal
+    name: streamlink
+    tag: 3.3.2
+    pullPolicy: Always
+  ffmpeg: 
+    repository: ghcr.io/liofal
+    name: ffmpeg6
+    tag: 1.0.0
+    pullPolicy: Always
 
 streamer:
   name: "<name_here>"
@@ -13,6 +20,10 @@ twitch:
   clientid: "<value_here>"
   clientsecret: "<value_here>"
   oauthtoken: "<value_here>"
+
+ffmpeg:
+  sleeptime: "<sleeptime_value>"
+  workdir: "<workdir_value>"
 
 slack:
   id: "<value_here>"

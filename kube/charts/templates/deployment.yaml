@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: streamlink-{{ .Values.streamer.name }}
+  
 spec:
   replicas: 1
   selector:
@@ -13,17 +14,30 @@ spec:
         app: streamlink-{{ .Values.streamer.name }}
     spec:
       serviceAccountName: streamlink-{{ .Values.streamer.name }}
+      restartPolicy: Always
       containers:
       - name: streamlink-{{ .Values.streamer.name }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        image: "{{ .Values.image.streamlink.repository }}/{{ .Values.image.streamlink.name }}:{{ .Values.image.streamlink.tag }}"
+        imagePullPolicy: {{ .Values.image.streamlink.pullPolicy }}
         envFrom:
         - configMapRef:
             name: streamlink-config-{{ .Values.streamer.name }}
         volumeMounts:
         - name: download-volume
           mountPath: /app/download
-      restartPolicy: Always
+      
+      - name: ffmpeg-{{ .Values.streamer.name }}
+        image: "{{ .Values.image.ffmpeg.repository }}/{{ .Values.image.ffmpeg.name }}:{{ .Values.image.ffmpeg.tag }}"
+        imagePullPolicy: {{ .Values.image.ffmpeg.pullPolicy }}
+        env:
+        - name: SLEEPTIME
+          value: "{{ .Values.ffmpeg.sleeptime }}"
+        - name: WORKDIR
+          value: "{{ .Values.ffmpeg.workdir }}"
+        volumeMounts:
+        - name: download-volume
+          mountPath: /app/download
+     
       volumes:
       - name: download-volume
         nfs:
