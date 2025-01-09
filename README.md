@@ -137,7 +137,7 @@ document.cookie.split("; ").find(item=>item.startsWith("auth-token="))?.split("=
 
 # Docker
     docker run -d --rm \
-    -v twitch:/download \
+    -v twitch:/app/download \
     -e timer=360 \
     -e user=heromarine \
     -e quality=best \
@@ -160,7 +160,7 @@ Specify the clientid.env file using the clientid.env.example delivered
 you can specify the default for compose here
 
 # Volume
-    /download 
+    /app/download 
 
 _**Warning:** The folder does not exist in the container and need te be created as a volume in order to be accessed from outside your container, you should map it if you want to access it_
 
