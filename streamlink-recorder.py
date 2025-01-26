@@ -38,7 +38,7 @@ def loop_check(config):
     while True:
         stream_status, title = twitch_manager.check_user(config.user)
         if stream_status == StreamStatus.ONLINE:
-            safe_title = re.sub(r"[^\w\s._:-]", "", title)
+            safe_title = re.sub(r"[^\w\s._-]|[<>:\"/\\|?*]", "", title)
             safe_title = os.path.basename(safe_title)
             filename = f"{config.user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {safe_title}"
             recorded_filename = os.path.join("./download/", filename)
