@@ -21,6 +21,10 @@ git remote set-head origin -a
 
 # Notes
 
+## 3.3.3
+Update dependency streamlink to v7.1.2
+Fix filename sanitization to handle reserved characters
+
 ## 3.3.2
 Refactor filename generation and add support for dynamic stream extensions in StreamlinkManager, in reference to improvement suggestion by [thematuu](https://github.com/thematuu) in [PR20](https://github.com/liofal/streamlink/pull/20)
 
