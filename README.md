@@ -21,7 +21,10 @@ git remote set-head origin -a
 
 # Notes
 
-## 3.3.3
+## 3.3.4
+Update dependency streamlink to v7.1.3
+
+## 3.3.3 
 Update dependency streamlink to v7.1.2
 Fix filename sanitization to handle reserved characters
 
