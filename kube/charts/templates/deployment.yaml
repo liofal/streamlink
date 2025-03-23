@@ -25,6 +25,7 @@ spec:
         volumeMounts:
         - name: download-volume
           mountPath: /app/download
+          subPath: {{ .Values.streamer.name }}
       
       - name: ffmpeg-{{ .Values.streamer.name }}
         image: "{{ .Values.image.ffmpeg.repository }}/{{ .Values.image.ffmpeg.name }}:{{ .Values.image.ffmpeg.tag }}"
@@ -37,6 +38,7 @@ spec:
         volumeMounts:
         - name: download-volume
           mountPath: /app/download
+          subPath: {{ .Values.streamer.name }}
      
       volumes:
       - name: download-volume
