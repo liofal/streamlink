@@ -5,7 +5,7 @@ type: application
 
 version: 0.2.0
 
-appVersion: "v3.3.4"
+appVersion: "3.3.4"
 
 home: https://github.com/liofal/streamlink
 

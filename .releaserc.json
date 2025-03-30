@@ -3,6 +3,18 @@
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
+    [
+      "semantic-release-helm", {
+        "chartPath": "kube/charts",
+        "updateAppVersion": true
+      }
+    ],
+    [
+      "@semantic-release/git", {
+        "assets": ["kube/charts/Chart.yaml"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ],
     "@semantic-release/github"
   ]
 }

@@ -1,9 +1,3 @@
-# ⚠️Important⚠️ Update: Release Process and Versioning
-
-This project now utilizes an automated release build system based on **Semantic Versioning (SemVer)**. This means releases will follow the `vX.Y.Z` format (e.g., `v3.3.4`) instead of the previous `X.Y.Z` format.
-
-While the new versioned tags (like `v3.3.4`) are recommended for stability, the previous release mechanism updating the `latest` tag remains active. If you rely on the `latest` tag, please ensure your system is configured to always pull the newest image to get updates, as `latest` will track the most recent build, regardless of its stability status compared to specific versioned releases.
-
 # ⚠️ Disclaimer ⚠️
 We have renamed the master branch to main for clarity and to follow best practices. Please reconfigure your branch origin with the following commands:
 
@@ -216,7 +210,7 @@ To deploy this project on Kubernetes using Helm, follow these steps:
       streamlink:
         repository: ghcr.io/liofal
         name: streamlink
-        tag: 3.3.2
+        tag: 3.3.4
         pullPolicy: Always
       ffmpeg: 
         repository: ghcr.io/liofal

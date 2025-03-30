@@ -9,6 +9,14 @@ jobs:
   release:
     name: Create Release
     uses: liofal/actions/.github/workflows/semantic_release.yml@main
+    with:
+      # Ensure all required plugins are installed by the reusable workflow
+      semantic-release-plugins: >-
+        @semantic-release/commit-analyzer
+        @semantic-release/release-notes-generator
+        semantic-release-helm
+        @semantic-release/git
+        @semantic-release/github
     permissions:
       contents: write
       issues: write
@@ -19,13 +27,26 @@ jobs:
   build_deploy:
     name: Build and Deploy Docker Image
     needs: release
-    # Use the new output name 'published' and compare to '1'
     if: needs.release.outputs.published == '1'
     uses: liofal/actions/.github/workflows/build_and_deploy.yml@main
     permissions:
       contents: read
       packages: write
     with:
-      # Use the new output name 'version'
       tag: ${{ needs.release.outputs.version }}
     secrets: inherit
+
+  # Job 3: Run the reusable workflow for Helm publish (if release occurred AND chart exists)
+  publish_helm_chart:
+    name: Publish Helm Chart
+    needs: release
+    # Condition: Check if release happened AND the chart file exists in *this* repo
+    if: needs.release.outputs.published == '1'
+    uses: liofal/actions/.github/workflows/publish_helm.yml@main
+    permissions:
+      contents: read   # publish_helm needs read access for checkout
+      packages: write  # publish_helm needs write access to push package and set visibility
+    with:
+      tag: ${{ needs.release.outputs.version }}
+      # chart_path: 'kube/charts' # Optional: Only needed if chart is not at the default path
+    secrets: inherit # Pass GITHUB_TOKEN down
