@@ -13,7 +13,7 @@ x-common: &common
 services:
   streamlink:
     <<: *common
-    image: ghcr.io/liofal/streamlink:3.3.4
+    image: ghcr.io/liofal/streamlink:v3.3.4
     build:
       context: .
       dockerfile: Dockerfile
