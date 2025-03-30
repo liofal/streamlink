@@ -1,16 +1,31 @@
-name: Build docker images with reusable actions.
+name: Release and Deploy
 
 on:
   push:
-    branches: [ main ]
-    tags:
-      - '*'
-  pull_request:
-    branches: [ main ]
+    branches: [ main ] # Or your default branch
 
 jobs:
-  deploy:
+  # Job 1: Run the reusable workflow for semantic-release
+  release:
+    name: Create Release
+    uses: liofal/actions/.github/workflows/semantic_release.yml@main
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    secrets: inherit
+
+  # Job 2: Run the reusable workflow for build and deploy
+  build_deploy:
+    name: Build and Deploy Docker Image
+    needs: release
+    # Use the new output name 'published' and compare to '1'
+    if: needs.release.outputs.published == '1'
     uses: liofal/actions/.github/workflows/build_and_deploy.yml@main
     permissions:
+      contents: read
       packages: write
+    with:
+      # Use the new output name 'version'
+      tag: ${{ needs.release.outputs.version }}
     secrets: inherit
