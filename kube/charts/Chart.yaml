@@ -3,9 +3,9 @@ name: streamlink-chart
 description: A Helm chart for Kubernetes to run streamlink jobs for different streamers
 type: application
 
-version: 0.1.0
+version: 0.2.0
 
-appVersion: "3.2.0"
+appVersion: "v3.3.4"
 
 home: https://github.com/liofal/streamlink
 
