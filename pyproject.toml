@@ -1,0 +1,6 @@
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.0.0" # Placeholder, semantic-release handles actual versioning
+version_files = [] # No files to update with version
+tag_format = "v$version"
+bump_message = "build: release $current_version → $new_version [skip ci]" # Example message
