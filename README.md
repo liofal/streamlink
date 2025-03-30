@@ -1,3 +1,12 @@
+# ⚠️Important⚠️ Update: Release Process and Versioning
+
+This project now utilizes an automated release build system based on **Semantic Versioning (SemVer)**. This means releases will follow the `vX.Y.Z` format (e.g., `v3.3.4`) instead of the previous `X.Y.Z` format.
+
+While the new versioned tags (like `v3.3.4`) are recommended for stability, the previous release mechanism updating the `latest` tag remains active. If you rely on the `latest` tag, please ensure your system is configured to always pull the newest image to get updates, as `latest` will track the most recent build, regardless of its stability status compared to specific versioned releases.
+
+# ⚠️ Disclaimer ⚠️
+We have renamed the master branch to main for clarity and to follow best practices. Please reconfigure your branch origin with the following commands:
+
 # Context
 I was in the search for a twitch stream ripper that would monitor and save streams to my twitch synology folder to watch on plex while I'm unable to watch online.
 
@@ -9,8 +18,6 @@ Questions, suggestions, requests, reach me out on [![alt text][1.1]][1]
 
 I'm also interested with new projects for automation of daily popular tasks, don't hesitate, I'm waiting for new ideas
 
-# ⚠️ Disclaimer ⚠️
-We have renamed the master branch to main for clarity and to follow best practices. Please reconfigure your branch origin with the following commands:
 
 ```sh
 git branch -m master main
