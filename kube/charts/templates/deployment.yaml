@@ -22,6 +22,8 @@ spec:
         envFrom:
         - configMapRef:
             name: streamlink-config-{{ .Values.streamer.name }}
+        - secretRef:
+            name: {{ .Values.secretName }}
         volumeMounts:
         - name: download-volume
           mountPath: /app/download

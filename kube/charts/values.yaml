@@ -16,21 +16,16 @@ streamer:
   quality: "best"
   timer: 120
 
-twitch:
-  clientid: "<value_here>"
-  clientsecret: "<value_here>"
-  oauthtoken: "<value_here>"
+# Name of the Kubernetes Secret containing sensitive tokens.
+# This secret should contain keys like clientid, clientsecret, oauthtoken, etc.
+# It's recommended to use one shared secret for all deployments of this chart.
+# Create this secret manually before deploying the chart.
+# See templates/secret.example.yaml for the required structure.
+secretName: "streamlink-secrets" # Default name for the shared secret
 
 ffmpeg:
   sleeptime: "<sleeptime_value>"
   workdir: "<workdir_value>"
-
-slack:
-  id: "<value_here>"
-
-telegram:
-  bottoken: "<value_here>"
-  chatid: "<value_here>"
 
 nfs:
   server: <server_ip_here>

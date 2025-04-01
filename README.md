@@ -111,41 +111,49 @@ Keywords can always be used
 * worst
 
 # Variables
+
+Environment variables are primarily used for Docker deployments. For Kubernetes/Helm deployments, configuration is managed via the `values.yaml` file and Kubernetes Secrets.
+
 ## timer
-Fill in twitch clientid to interact with twitch API and retrieve status of stream from stream list
+Specifies the interval (in seconds) to check for stream status.
 
     timer=360
 
+## user (Docker only)
+The Twitch username to monitor.
 
-## clientid
-Fill in twitch clientid to interact with twitch API and retrieve status of stream from stream list
+    user=heromarine
+
+## quality (Docker only)
+The desired stream quality (e.g., `best`, `worst`, `1080p60`).
+
+    quality=best
+
+## clientid, clientsecret, oauthtoken, slackid, telegrambottoken, telegramchatid (Docker only)
+These variables are used for Docker deployments to provide necessary credentials. **For Kubernetes/Helm, these are managed via a Kubernetes Secret.**
 
     clientid=xxxxxxxx
-
-## clientsecret
-Fill in twitch clientsecret to interact with twitch API and retrieve status of stream from stream list
-
     clientsecret=xxxxxxxx
-
-## slackid
-Fill in slack if you want recod start/stop notification
-
-    slackid=xxxxxxxxx
-
-## oauthtoken
-Fill in your OAuth token for Twitch API to authenticate requests. The procedure to collect the OAuth token is described [here](https://streamlink.github.io/cli/plugins/twitch.html) 
-
     oauthtoken=xxxxxxxx
-
-In order to get the personal OAuth token from Twitch's website which identifies your account, open Twitch.tv in your web browser and after a successful login, open the developer tools by pressing F12 or CTRL+SHIFT+I. Then navigate to the "Console" tab or its equivalent of your web browser and execute the following JavaScript snippet, which reads the value of the auth-token cookie, if it exists:
-
-```javascript
-document.cookie.split("; ").find(item=>item.startsWith("auth-token="))?.split("=")[1]
-```
+    slackid=xxxxxxxxx
+    telegrambottoken=xxxxxxxxx
+    telegramchatid=xxxxxxxxx
 
 # Docker
     docker run -d --rm \
     -v twitch:/app/download \
+    -e timer=360 \
+    -e user=heromarine \
+    -e quality=best \
+    -e clientid=XxX \
+    -e clientsecret=XxX \
+    -e oauthtoken=XxX \
+    -e slackid=XxX \
+    -e telegrambottoken=XxX \
+    -e telegramchatid=XxX \
+    ghcr.io/liofal/streamlink:latest # Note: Image path updated to ghcr.io
+
+# Compose
     -e timer=360 \
     -e user=heromarine \
     -e quality=best \
@@ -196,15 +204,19 @@ To deploy this project on Kubernetes using Helm, follow these steps:
     helm repo update
     ```
 
-3. **Install the Helm Chart:**
-    ```sh
-    helm install my-streamlink streamlink/streamlink -n streamlink -f /path/to/your/values.yaml
-    ```
-
-    Replace `/path/to/your/values.yaml` with the path to your customized `values.yaml` file.
+3. **Prepare the Shared Secret:**
+    Before installing the chart, you must create a single, shared Kubernetes Secret containing the necessary API tokens and IDs for all your streamlink instances. The chart includes an example manifest at `kube/charts/templates/secret.example.yaml`.
+    *   Copy `secret.example.yaml` to a new file (e.g., `streamlink-secrets.yaml`).
+    *   Edit the new file:
+        *   Ensure the `metadata.name` is set to the desired shared secret name (the default and recommended name is `streamlink-secrets`).
+        *   Replace the placeholder values in the `data` section with your **base64 encoded** secrets (Twitch client ID/secret/token, Slack ID, Telegram bot token/chat ID). You can encode a value using `echo -n 'your-secret-value' | base64`.
+    *   Apply the secret manifest to your cluster **once**:
+        ```sh
+        kubectl apply -f streamlink-secrets.yaml -n streamlink
+        ```
 
 4. **Customize Your `values.yaml`:**
-    Edit the `values.yaml` file to configure the deployment according to your needs. Here is an example configuration:
+    Create a `values.yaml` file (or use an existing one) for each streamlink instance you want to deploy. Ensure the `secretName` field is set to the name of the shared Secret you created in the previous step (e.g., `streamlink-secrets`). Here is an example configuration for one instance:
     ```yaml
     image:
       streamlink:
@@ -224,35 +236,33 @@ To deploy this project on Kubernetes using Helm, follow these steps:
       quality: "best"
       timer: 120
 
-    twitch:
-      clientid: "<value_here>"
-      clientsecret: "<value_here>"
-      oauthtoken: "<value_here>"
+    # Name of the Kubernetes Secret containing sensitive tokens.
+    # This should point to the single, shared Secret created in Step 3.
+    secretName: "streamlink-secrets" # Default name for the shared secret
 
     ffmpeg:
       sleeptime: "<sleeptime_value>"
       workdir: "<workdir_value>"
-
-    slack:
-      id: "<value_here>"
-
-    telegram:
-      bottoken: "<value_here>"
-      chatid: "<value_here>"
 
     nfs:
       server: <server_ip_here>
       path: /<volume>/<folder>
     ```
 
-5. **Upgrade the Helm Release:**
-    If you need to apply changes to your deployment, update your `values.yaml` file and run:
+5. **Install the Helm Chart:**
+    ```sh
+    helm install my-streamlink streamlink/streamlink -n streamlink -f /path/to/your/values.yaml
+    ```
+    Replace `/path/to/your/values.yaml` with the path to your customized `values.yaml` file.
+
+6. **Upgrade the Helm Release:**
+    If you need to apply changes to your deployment, ensure your Secret is up-to-date, update your `values.yaml` file if necessary, and run:
     ```sh
     helm upgrade my-streamlink streamlink/streamlink -n streamlink -f /path/to/your/values.yaml
     ```
 
-6. **Uninstall the Helm Release:**
-    To remove the deployment, run:
+7. **Uninstall the Helm Release:**
+    To remove the deployment (this does not remove the Secret):
     ```sh
     helm uninstall my-streamlink -n streamlink
     ```
