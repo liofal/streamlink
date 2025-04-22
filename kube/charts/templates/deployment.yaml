@@ -17,7 +17,7 @@ spec:
       restartPolicy: Always
       containers:
       - name: streamlink-{{ .Values.streamer.name }}
-        image: "{{ .Values.image.streamlink.repository }}/{{ .Values.image.streamlink.name }}:{{ .Values.image.streamlink.tag }}"
+        image: "{{ .Values.image.streamlink.repository }}/{{ .Values.image.streamlink.name }}:{{ .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.streamlink.pullPolicy }}
         envFrom:
         - configMapRef:

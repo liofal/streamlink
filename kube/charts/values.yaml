@@ -2,7 +2,7 @@ image:
   streamlink:
     repository: ghcr.io/liofal
     name: streamlink
-    tag: 3.3.4
+    # tag is now derived from Chart.AppVersion in templates
     pullPolicy: Always
   ffmpeg: 
     repository: ghcr.io/liofal
