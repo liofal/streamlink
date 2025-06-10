@@ -5,4 +5,4 @@ requests-oauthlib==2.0.0
 streamlink==7.4.0
 twitchAPI==4.5.0
 pre-commit==4.2.0
-commitizen==4.8.2
+commitizen==4.8.3
