@@ -1,5 +1,5 @@
 # Base image with Python
-FROM python:3.13.5-alpine3.21 as base
+FROM python:3.13.6-alpine3.21 as base
 WORKDIR /app
 
 # Builder stage to install build dependencies and Python packages
