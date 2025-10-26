@@ -37,18 +37,18 @@
     }
   ],
   "pip_requirements": {
-    "fileMatch": [
-      "requirements.txt"
+    "managerFilePatterns": [
+      "/requirements.txt/"
     ]
   },
   "dockerfile": {
-    "fileMatch": [
-      "Dockerfile"
+    "managerFilePatterns": [
+      "/Dockerfile/"
     ]
   },
   "github-actions": {
-    "fileMatch": [
-      ".github/workflows/*.yml"
+    "managerFilePatterns": [
+      "/.github/workflows/*.yml/"
     ]
   },
   "labels": [
