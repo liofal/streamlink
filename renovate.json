@@ -64,9 +64,9 @@
   "timezone": "Europe/Brussels",
   "dependencyDashboard": true,
   "dependencyDashboardTitle": "Dependency Dashboard",
-  "commitMessagePrefix": "chore(deps):",
-  "commitMessageAction": "update",
-  "commitMessageTopic": "{{depName}}",
-  "commitMessageExtra": "to {{newVersion}}",
-  "semanticCommits": "enabled"
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "semanticCommitAction": "update",
+  "semanticCommitSubject": "{{depName}} to {{newVersion}}"
 }
