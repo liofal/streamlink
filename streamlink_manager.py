@@ -11,14 +11,21 @@ class StreamlinkManager:
     M3U8_EXTENSIONS = ['m3u8']
 
     def get_stream_extension(self, stream):
+        # In Streamlink 8.x, to_manifest_url is removed and .url should be used.
+        # We check for .url first, or fall back to legacy behavior if needed.
+        if hasattr(stream, 'url'):
+            url = stream.url
+            file_extension = url.split('?')[0].split('.')[-1]
+            if file_extension in self.M3U8_EXTENSIONS:
+                return 'ts'
+        
         if hasattr(stream, 'to_manifest_url'):
             url = stream.to_manifest_url()
             file_extension = url.split('?')[0].split('.')[-1]
-            file_extension = stream.url.split('?')[0].split('.')[-1]
             if file_extension in self.M3U8_EXTENSIONS:
                 return 'ts'
-        else:
-            return 'mp4'
+        
+        return 'mp4'
 
     def cleanup(self, fd, temp_filename, final_filename, *args):
         """
@@ -31,8 +38,6 @@ class StreamlinkManager:
 
     def run_streamlink(self, user, recorded_filename):
         session = streamlink.Streamlink()
-        session.set_option("twitch-disable-hosting", True)
-        session.set_option("twitch-disable-ads", True)
         session.set_option("retry-max", 5)
         session.set_option("retry-streams", 60)
 

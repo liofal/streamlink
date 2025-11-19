@@ -22,6 +22,10 @@ git remote set-head origin -a
 
 # Notes
 
+## 3.4.0
+Update dependency streamlink to v8.0.0
+Removed deprecated `twitch-disable-hosting` and `twitch-disable-ads` options (handled automatically by Streamlink 8.x)
+
 ## 3.3.4
 Update dependency streamlink to v7.1.3
 
