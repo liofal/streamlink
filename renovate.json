@@ -67,6 +67,6 @@
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
-  "semanticCommitAction": "update",
-  "semanticCommitSubject": "{{depName}} to {{newVersion}}"
+  "commitMessageAction": "update",
+  "commitMessageTopic": "{{depName}} to {{newVersion}}"
 }
