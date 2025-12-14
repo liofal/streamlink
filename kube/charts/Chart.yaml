@@ -2,8 +2,8 @@ apiVersion: v2
 name: streamlink-chart
 description: A Helm chart for Kubernetes to run streamlink jobs for different streamers
 type: application
-version: 4.0.3
-appVersion: 4.0.3
+version: 4.0.4
+appVersion: 4.0.4
 home: https://github.com/liofal/streamlink
 sources:
   - https://github.com/liofal/streamlink
