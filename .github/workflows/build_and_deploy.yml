@@ -34,6 +34,7 @@ jobs:
       packages: write
     with:
       tag: ${{ needs.release.outputs.version }}
+      push_to_dockerhub: false
     secrets: inherit
 
   # Job 3: Run the reusable workflow for Helm publish (if release occurred AND chart exists)
