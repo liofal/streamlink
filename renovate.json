@@ -3,6 +3,9 @@
   "extends": [
     "config:recommended"
   ],
+  "vulnerabilityAlerts": {
+    "enabled": true
+  },
   "packageRules": [
     {
       "matchUpdateTypes": [
