@@ -28,7 +28,7 @@
 		// "ghcr.io/skriptfabrik/devcontainer-features/gitlab-cli:1": {},
 		// "ghcr.io/devcontainers-extra/features/terraform-asdf:2": {},
 		"ghcr.io/devcontainers/features/github-cli:1": {},
-		"ghcr.io/devcontainers/features/node:1": {},
+		"ghcr.io/devcontainers/features/node:2": {},
 		// "ghcr.io/devcontainers/features/go:1": {}
 	},
 	"mounts": [
