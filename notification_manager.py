@@ -16,6 +16,27 @@ class Notifier(ABC):
     def notify(self, message):
         raise NotImplementedError("Subclasses must implement the notify method")
 
+def _log_notification_http_error(service_name, error):
+    response = getattr(error, "response", None)
+    if response is None:
+        logger.error("%s notification failed with an HTTP error", service_name)
+        return
+
+    status_code = getattr(response, "status_code", "unknown")
+    reason = getattr(response, "reason", "")
+    if reason:
+        logger.error("%s notification failed with HTTP %s %s", service_name, status_code, reason)
+    else:
+        logger.error("%s notification failed with HTTP %s", service_name, status_code)
+
+
+def _log_notification_unexpected_error(service_name, error):
+    logger.error(
+        "Unexpected error occurred while sending message to %s: %s",
+        service_name,
+        type(error).__name__,
+    )
+
 class NotificationManager:
     def __init__(self, config):
         self.config = config
@@ -55,10 +76,10 @@ class SlackNotifier(Notifier):
                 timeout=30,
             )
             response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error occurred: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error occurred while sending message to Slack: {e}")
+        except requests.exceptions.HTTPError as error:
+            _log_notification_http_error("Slack", error)
+        except Exception as error:
+            _log_notification_unexpected_error("Slack", error)
 
 class TelegramNotifier(Notifier):
     def __init__(self, bot_token, chat_id):
@@ -80,10 +101,10 @@ class TelegramNotifier(Notifier):
                 timeout=30,
             )
             response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error occurred: {e}")
-        except Exception as exc:
-            logger.error(f"Unexpected error occurred while sending message to Telegram: {exc}")
+        except requests.exceptions.HTTPError as error:
+            _log_notification_http_error("Telegram", error)
+        except Exception as error:
+            _log_notification_unexpected_error("Telegram", error)
 
 class NotifierFactory:
     _notifiers = {

@@ -18,7 +18,7 @@ class TwitchManager:
         self.twitch = None
 
     async def app_refresh(self, token: str):
-        logger.info(f'my new app token is: {token}')
+        logger.info("Twitch app token refreshed")
 
     async def get_from_twitch_async(self, operation, **kwargs):
         if self.twitch is None:
