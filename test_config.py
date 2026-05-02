@@ -187,5 +187,79 @@ class TestConfigParsing(unittest.TestCase):
         self.assertIn("Invalid integer for timer", stderr.getvalue())
 
 
+    def test_auth_validation_config_defaults(self):
+        config = self.parse_with_env(
+            [],
+            {
+                "TWITCH_USER": "env-user",
+                "TWITCH_CLIENT_ID": "env-client-id",
+                "TWITCH_CLIENT_SECRET": "env-client-secret",
+            },
+        )
+
+        self.assertEqual(config.auth_invalid_policy, "exit")
+        self.assertEqual(config.auth_validation_interval, 3600)
+
+    def test_auth_validation_config_from_modern_env(self):
+        config = self.parse_with_env(
+            [],
+            {
+                "TWITCH_USER": "env-user",
+                "TWITCH_CLIENT_ID": "env-client-id",
+                "TWITCH_CLIENT_SECRET": "env-client-secret",
+                "TWITCH_AUTH_INVALID_TOKEN_POLICY": "notify",
+                "TWITCH_AUTH_VALIDATION_INTERVAL": "120",
+            },
+        )
+
+        self.assertEqual(config.auth_invalid_policy, "notify")
+        self.assertEqual(config.auth_validation_interval, 120)
+
+    def test_auth_validation_config_from_legacy_env(self):
+        config = self.parse_with_env(
+            [],
+            {
+                "user": "legacy-user",
+                "clientid": "legacy-client-id",
+                "clientsecret": "legacy-client-secret",
+                "authinvalidpolicy": "notify",
+                "authvalidationinterval": "300",
+            },
+        )
+
+        self.assertEqual(config.auth_invalid_policy, "notify")
+        self.assertEqual(config.auth_validation_interval, 300)
+
+    def test_invalid_auth_policy_fails_clearly(self):
+        stderr = io.StringIO()
+        env = {
+            "TWITCH_USER": "env-user",
+            "TWITCH_CLIENT_ID": "env-client-id",
+            "TWITCH_CLIENT_SECRET": "env-client-secret",
+            "TWITCH_AUTH_INVALID_TOKEN_POLICY": "restart",
+        }
+        with patch.dict(os.environ, env, clear=True), patch.object(sys, "stderr", stderr):
+            with self.assertRaises(SystemExit) as raised:
+                streamlink_recorder.parse_arguments([])
+
+        self.assertNotEqual(raised.exception.code, 0)
+        self.assertIn("Invalid auth invalid token policy", stderr.getvalue())
+
+    def test_invalid_auth_validation_interval_fails_clearly(self):
+        stderr = io.StringIO()
+        env = {
+            "TWITCH_USER": "env-user",
+            "TWITCH_CLIENT_ID": "env-client-id",
+            "TWITCH_CLIENT_SECRET": "env-client-secret",
+            "TWITCH_AUTH_VALIDATION_INTERVAL": "not-an-int",
+        }
+        with patch.dict(os.environ, env, clear=True), patch.object(sys, "stderr", stderr):
+            with self.assertRaises(SystemExit) as raised:
+                streamlink_recorder.parse_arguments([])
+
+        self.assertNotEqual(raised.exception.code, 0)
+        self.assertIn("Invalid integer for auth validation interval", stderr.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

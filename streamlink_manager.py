@@ -1,8 +1,20 @@
+import logging
 import os
 import streamlink
 import shutil
 import signal
 import sys
+from enum import Enum, auto
+
+logger = logging.getLogger(__name__)
+
+
+class AuthValidationStatus(Enum):
+    NOT_CONFIGURED = auto()
+    VALID_OR_NOT_REJECTED = auto()
+    INVALID = auto()
+    UNKNOWN = auto()
+
 
 class StreamlinkManager:
     def __init__(self, config):
@@ -37,12 +49,8 @@ class StreamlinkManager:
             shutil.move(temp_filename, final_filename)
 
     def run_streamlink(self, user, recorded_filename):
-        session = streamlink.Streamlink()
-        session.set_option("retry-max", 5)
-        session.set_option("retry-streams", 60)
-
-        if self.config.oauth_token:
-            session.set_option("http-headers", f"Authorization=OAuth {self.config.oauth_token}")
+        session = self.create_session()
+        self.configure_session_auth(session)
         quality = self.config.quality
         streams = session.streams(f"twitch.tv/{user}")
         if quality not in streams:
@@ -69,3 +77,37 @@ class StreamlinkManager:
         finally:
             # Ensure cleanup is called when the try block exits
             self.cleanup(fd, temp_filename, final_filename)
+
+    def create_session(self):
+        session = streamlink.Streamlink()
+        session.set_option("retry-max", 5)
+        session.set_option("retry-streams", 60)
+        return session
+
+    def configure_session_auth(self, session, oauth_token=None):
+        token = self.config.oauth_token if oauth_token is None else oauth_token
+        if token:
+            session.set_option("http-headers", f"Authorization=OAuth {token}")
+
+    def is_invalid_twitch_auth_error(self, error):
+        message = str(error)
+        return (
+            "Authorization" in message
+            and "token" in message.lower()
+            and any(fragment in message.lower() for fragment in ("invalid", "unauthorized"))
+        )
+
+    def validate_oauth_token(self, user):
+        if not self.config.oauth_token:
+            return AuthValidationStatus.NOT_CONFIGURED
+
+        session = self.create_session()
+        self.configure_session_auth(session)
+        try:
+            session.streams(f"twitch.tv/{user}")
+            return AuthValidationStatus.VALID_OR_NOT_REJECTED
+        except Exception as error:
+            if self.is_invalid_twitch_auth_error(error):
+                return AuthValidationStatus.INVALID
+            logger.warning("Unable to validate Twitch auth token: %s", type(error).__name__)
+            return AuthValidationStatus.UNKNOWN
