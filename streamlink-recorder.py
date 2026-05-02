@@ -67,7 +67,7 @@ def parse_timer_value(parser, value):
     try:
         return int(value)
     except (TypeError, ValueError):
-        parser.error(f"Invalid integer for timer: {value}")
+        parser.error("Invalid integer for timer; set -timer/TIMER to a whole number")
 
 def loop_check(config):
     twitch_manager = TwitchManager(config)
@@ -92,7 +92,7 @@ def loop_check(config):
 
 def parse_arguments(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-timer", type=int, help="Stream check interval (less than 15s are not recommended)")
+    parser.add_argument("-timer", help="Stream check interval (less than 15s are not recommended)")
     parser.add_argument("-user", help="Twitch user that we are checking")
     parser.add_argument("-quality", help="Recording quality")
     parser.add_argument("-clientid", help="Your Twitch app client id")

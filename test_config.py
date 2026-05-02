@@ -152,6 +152,25 @@ class TestConfigParsing(unittest.TestCase):
         self.assertIn("Missing required configuration: user", stderr.getvalue())
         self.assertIn("TWITCH_USER", stderr.getvalue())
 
+    def test_empty_cli_timer_uses_env_value(self):
+        env = {
+            "TWITCH_USER": "env-user",
+            "TIMER": "999",
+            "TWITCH_CLIENT_ID": "env-client-id",
+            "TWITCH_CLIENT_SECRET": "env-client-secret",
+        }
+        config = self.parse_with_env(["-timer="], env)
+        self.assertEqual(config.timer, 999)
+
+    def test_empty_cli_timer_without_env_uses_default(self):
+        env = {
+            "TWITCH_USER": "env-user",
+            "TWITCH_CLIENT_ID": "env-client-id",
+            "TWITCH_CLIENT_SECRET": "env-client-secret",
+        }
+        config = self.parse_with_env(["-timer="], env)
+        self.assertEqual(config.timer, 240)
+
     def test_invalid_environment_timer_fails_clearly(self):
         stderr = io.StringIO()
         env = {
