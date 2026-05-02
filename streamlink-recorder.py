@@ -9,9 +9,10 @@ import re
 import time
 import logging
 import sys
+from dataclasses import dataclass
 
 from twitch_manager import TwitchManager, StreamStatus
-from streamlink_manager import StreamlinkManager
+from streamlink_manager import AuthValidationStatus, StreamlinkManager
 from notification_manager import NotificationManager
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -87,14 +88,89 @@ def parse_auth_invalid_policy(parser, value):
         parser.error("Invalid auth invalid token policy; expected exit or notify")
     return policy
 
+
+@dataclass
+class RecorderState:
+    auth_status: AuthValidationStatus = AuthValidationStatus.NOT_CONFIGURED
+    last_auth_validation_time: float = 0
+    invalid_auth_notified: bool = False
+
+
+def invalid_auth_message(config):
+    return f"Twitch playback auth token is invalid for {config.user}. Renew oauthtoken/TWITCH_AUTH_TOKEN and restart the recorder."
+
+
+def apply_invalid_auth_policy(config, notifier_manager, state):
+    message = invalid_auth_message(config)
+    logger.error(message)
+    if not state.invalid_auth_notified:
+        notifier_manager.notify_all(message)
+        state.invalid_auth_notified = True
+    state.auth_status = AuthValidationStatus.INVALID
+    if config.auth_invalid_policy == "exit":
+        raise SystemExit(1)
+    return state
+
+
+def validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, state=None, force_notify=False):
+    state = state or RecorderState()
+    status = streamlink_manager.validate_oauth_token(config.user)
+    state.auth_status = status
+    state.last_auth_validation_time = time.time()
+
+    if status == AuthValidationStatus.INVALID:
+        if force_notify:
+            state.invalid_auth_notified = False
+        return apply_invalid_auth_policy(config, notifier_manager, state)
+
+    if status == AuthValidationStatus.VALID_OR_NOT_REJECTED:
+        if state.invalid_auth_notified:
+            notifier_manager.notify_all(f"Twitch playback auth token validation recovered for {config.user}. Recording is enabled again.")
+        state.invalid_auth_notified = False
+
+    if status == AuthValidationStatus.UNKNOWN:
+        logger.warning("Unable to validate Twitch playback auth token for %s; will retry later", config.user)
+
+    return state
+
+
+def should_validate_auth(config, state):
+    if not config.oauth_token:
+        return False
+    return time.time() - state.last_auth_validation_time >= config.auth_validation_interval
+
+
+def should_attempt_recording(config, state):
+    return not (config.auth_invalid_policy == "notify" and state.auth_status == AuthValidationStatus.INVALID)
+
+
+def handle_recording_error(config, streamlink_manager, notifier_manager, error, state=None):
+    state = state or RecorderState()
+    if streamlink_manager.is_invalid_twitch_auth_error(error):
+        return apply_invalid_auth_policy(config, notifier_manager, state)
+
+    message = f"Recording {config.user} failed: {type(error).__name__}. Recorder will continue checking."
+    logger.error(message)
+    notifier_manager.notify_all(message)
+    return state
+
+
 def loop_check(config):
     twitch_manager = TwitchManager(config)
     streamlink_manager = StreamlinkManager(config)
     notifier_manager = NotificationManager(config)
 
+    state = validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, force_notify=True)
+
     while True:
+        if should_validate_auth(config, state):
+            state = validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, state=state)
         stream_status, title = twitch_manager.check_user(config.user)
         if stream_status == StreamStatus.ONLINE:
+            if not should_attempt_recording(config, state):
+                logger.error("Skipping recording for %s because Twitch playback auth token is invalid", config.user)
+                time.sleep(config.timer)
+                continue
             safe_title = re.sub(r"[^\w\s._-]|[<>:\"/\\|?*]", "", title)
             safe_title = os.path.basename(safe_title)
             filename = f"{config.user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {safe_title}"
@@ -102,7 +178,12 @@ def loop_check(config):
             message = f"Recording {config.user} ..."
             notifier_manager.notify_all(message)
             logger.info(message)
-            streamlink_manager.run_streamlink(config.user, recorded_filename)
+            try:
+                streamlink_manager.run_streamlink(config.user, recorded_filename)
+            except Exception as error:
+                state = handle_recording_error(config, streamlink_manager, notifier_manager, error, state=state)
+                time.sleep(config.timer)
+                continue
             message = f"Stream {config.user} is done. File saved as {filename}. Going back to checking.."
             logger.info(message)
             notifier_manager.notify_all(message)
