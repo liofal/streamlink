@@ -1,7 +1,7 @@
 
 import unittest
 from unittest.mock import MagicMock, patch
-from streamlink_manager import StreamlinkManager
+from streamlink_manager import AuthValidationStatus, StreamlinkManager
 
 class TestStreamlinkManager(unittest.TestCase):
     def setUp(self):
@@ -69,6 +69,51 @@ class TestStreamlinkManager(unittest.TestCase):
         self.assertIn("retry-max", args_list)
         self.assertIn("retry-streams", args_list)
         self.assertIn("http-headers", args_list)
+
+    def test_is_invalid_twitch_auth_error_detects_authorization_token_error(self):
+        error = Exception('Unauthorized: The "Authorization" token is invalid.')
+
+        self.assertTrue(self.manager.is_invalid_twitch_auth_error(error))
+
+    def test_is_invalid_twitch_auth_error_ignores_unrelated_errors(self):
+        error = Exception("Network timeout while opening stream")
+
+        self.assertFalse(self.manager.is_invalid_twitch_auth_error(error))
+
+    def test_validate_oauth_token_not_configured(self):
+        self.config.oauth_token = None
+
+        status = self.manager.validate_oauth_token("testuser")
+
+        self.assertEqual(status, AuthValidationStatus.NOT_CONFIGURED)
+
+    @patch('streamlink_manager.streamlink.Streamlink')
+    def test_validate_oauth_token_valid_or_not_rejected(self, mock_streamlink_cls):
+        mock_session = mock_streamlink_cls.return_value
+        mock_session.streams.return_value = {}
+
+        status = self.manager.validate_oauth_token("testuser")
+
+        self.assertEqual(status, AuthValidationStatus.VALID_OR_NOT_REJECTED)
+        mock_session.streams.assert_called_once_with("twitch.tv/testuser")
+
+    @patch('streamlink_manager.streamlink.Streamlink')
+    def test_validate_oauth_token_invalid(self, mock_streamlink_cls):
+        mock_session = mock_streamlink_cls.return_value
+        mock_session.streams.side_effect = Exception('Unauthorized: The "Authorization" token is invalid.')
+
+        status = self.manager.validate_oauth_token("testuser")
+
+        self.assertEqual(status, AuthValidationStatus.INVALID)
+
+    @patch('streamlink_manager.streamlink.Streamlink')
+    def test_validate_oauth_token_unknown(self, mock_streamlink_cls):
+        mock_session = mock_streamlink_cls.return_value
+        mock_session.streams.side_effect = RuntimeError("temporary network failure")
+
+        status = self.manager.validate_oauth_token("testuser")
+
+        self.assertEqual(status, AuthValidationStatus.UNKNOWN)
 
 if __name__ == '__main__':
     unittest.main()
