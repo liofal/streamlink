@@ -22,7 +22,7 @@
 	},
 	"features": {
 		// "ghcr.io/dhoeric/features/google-cloud-cli:1": {},
-		// "ghcr.io/devcontainers/features/aws-cli:1": {},
+		"ghcr.io/devcontainers/features/aws-cli:1": {},
 		// "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
 		// "ghcr.io/devcontainers-extra/features/node-asdf:0": {},
 		// "ghcr.io/skriptfabrik/devcontainer-features/gitlab-cli:1": {},
@@ -34,11 +34,11 @@
 	"mounts": [
 		"source=${localEnv:HOME}/.pi,target=/home/vscode/.pi,type=bind",
 		"source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind",
-		// "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind",
+		"source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind",
 		// "source=${localEnv:HOME}/.claude/.claude.json,target=/home/vscode/.claude.json,type=bind",
 		// "source=${localEnv:HOME}/.config/gcloud,target=/home/vscode/.config/gcloud,type=bind",
 		"source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind",
-		// "source=${localEnv:HOME}/.aws,target=/home/vscode/.aws,type=bind",
+		"source=${localEnv:HOME}/.aws,target=/home/vscode/.aws,type=bind",
 		// "source=${localEnv:HOME}/Downloads/gitlab/innovation/ops,target=/workspaces/ops,type=bind,consistency=cached",
 		// "source=${localEnv:HOME}/.cache/terraform/plugin-cache,target=/home/vscode/.terraform.d/plugin-cache,type=bind",
 		// "source=${localEnv:HOME}/.cache/terraform/data,target=/home/vscode/.cache/terraform/data,type=bind"
