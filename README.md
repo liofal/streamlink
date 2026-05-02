@@ -116,55 +116,87 @@ Keywords can always be used
 
 # Variables
 
-Environment variables are primarily used for Docker deployments. For Kubernetes/Helm deployments, configuration is managed via the `values.yaml` file and Kubernetes Secrets.
+Environment variables are primarily used for Docker deployments. For Kubernetes/Helm deployments, configuration is managed with `values.yaml`, ConfigMaps, and Kubernetes Secrets.
 
-## timer
-Specifies the interval (in seconds) to check for stream status.
+Existing lowercase variable names remain supported for compatibility. New deployments may use the uppercase aliases below.
 
-    timer=360
+| Purpose | Existing name | Preferred alias |
+| --- | --- | --- |
+| Twitch user to monitor | `user` | `TWITCH_USER` |
+| Check interval in seconds | `timer` | `TIMER` |
+| Recording quality | `quality` | `STREAM_QUALITY` |
+| Twitch Helix client ID | `clientid` | `TWITCH_CLIENT_ID` |
+| Twitch Helix client secret | `clientsecret` | `TWITCH_CLIENT_SECRET` |
+| Streamlink Twitch playback auth token | `oauthtoken` | `TWITCH_AUTH_TOKEN` or `TWITCH_OAUTH_TOKEN` |
+| Slack webhook path/ID | `slackid` | `SLACK_ID` |
+| Telegram bot token | `telegrambottoken` | `TELEGRAM_BOT_TOKEN` |
+| Telegram chat ID | `telegramchatid` | `TELEGRAM_CHAT_ID` |
+| Comma-separated Twitch game IDs to record | `gamelist` | `GAME_LIST` |
 
-## user (Docker only)
-The Twitch username to monitor.
+## Twitch credentials and playback auth
 
-    user=heromarine
+This project uses two different Twitch credential types:
 
-## quality (Docker only)
-The desired stream quality (e.g., `best`, `worst`, `1080p60`).
+1. **Twitch Developer Portal credentials**: `clientid` / `clientsecret` or `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET`.
+   These are used by this app to call Twitch Helix and check whether the configured streamer is live.
+2. **Streamlink Twitch playback auth token**: `oauthtoken`, `TWITCH_AUTH_TOKEN`, or `TWITCH_OAUTH_TOKEN`.
+   This is the `auth-token` browser cookie from a logged-in Twitch web session, passed to Streamlink as `Authorization=OAuth <token>` for playback requests.
 
-    quality=best
+The playback auth token is **not** the same thing as a normal Twitch Developer Portal OAuth refresh-token flow. Streamlink's Twitch playback authentication currently relies on the browser `auth-token` cookie.
 
-## clientid, clientsecret, oauthtoken, slackid, telegrambottoken, telegramchatid (Docker only)
-These variables are used for Docker deployments to provide necessary credentials. **For Kubernetes/Helm, these are managed via a Kubernetes Secret.**
+The playback token is optional. Omit it when unauthenticated recording of public streams works for your use case. Configure it only when the Twitch stream/VOD playback you need requires authenticated browser access.
 
-    clientid=xxxxxxxx
-    clientsecret=xxxxxxxx
-    oauthtoken=xxxxxxxx
-    slackid=xxxxxxxxx
-    telegrambottoken=xxxxxxxxx
-    telegramchatid=xxxxxxxxx
+### Twitch auth-token security caveats
+
+Treat the browser `auth-token` like an account secret:
+
+- Do not paste it into GitHub issues, chat, screenshots, or logs.
+- Do not commit real values to this repository.
+- Prefer env files, Docker secrets, or Kubernetes Secrets over inline terminal commands.
+- Logging out of Twitch may not immediately revoke previously issued tokens.
+- If a token may have leaked, use Twitch account security settings, password rotation, and "sign out everywhere" style controls to invalidate active sessions where available.
+
+### Getting or renewing the playback auth token
+
+1. Log in to Twitch in a browser as the account you want Streamlink to use for playback.
+2. Open the browser developer tools and inspect cookies for `twitch.tv`.
+3. Copy the value of the `auth-token` cookie only.
+4. Store it as `oauthtoken`, `TWITCH_AUTH_TOKEN`, or `TWITCH_OAUTH_TOKEN` in your deployment secret store.
+5. Restart or roll out the recorder so it receives the new value.
+
+Avoid pasting real tokens directly into shell commands on shared systems because they may be saved in shell history or terminal logs.
 
 # Docker
-    docker run -d --rm \
-    -v twitch:/app/download \
-    -e timer=360 \
-    -e user=heromarine \
-    -e quality=best \
-    -e clientid=XxX \
-    -e clientsecret=XxX \
-    -e oauthtoken=XxX \
-    -e slackid=XxX \
-    -e telegrambottoken=XxX \
-    -e telegramchatid=XxX \
-    ghcr.io/liofal/streamlink:latest # Note: Image path updated to ghcr.io
 
-# Compose
-    -e timer=360 \
-    -e user=heromarine \
-    -e quality=best \
-    -e clientid=XxX \
-    -e clientsecret=XxX \
-    -e slackid=XxX \
-    liofal/streamlink:latest
+For Docker, prefer an env file instead of inline `-e` flags for secrets:
+
+```env
+# clientid.env - keep this file out of git
+TWITCH_CLIENT_ID=xxxxxxxx
+TWITCH_CLIENT_SECRET=xxxxxxxx
+TWITCH_AUTH_TOKEN=xxxxxxxx # optional browser auth-token for Streamlink playback
+SLACK_ID=xxxxxxxxx
+TELEGRAM_BOT_TOKEN=xxxxxxxxx
+TELEGRAM_CHAT_ID=xxxxxxxxx
+```
+
+```sh
+docker run -d --rm \
+  --env-file clientid.env \
+  -v twitch:/app/download \
+  -e TIMER=360 \
+  -e TWITCH_USER=heromarine \
+  -e STREAM_QUALITY=best \
+  ghcr.io/liofal/streamlink:latest
+```
+
+Existing lowercase env files continue to work:
+
+```env
+clientid=xxxxxxxx
+clientsecret=xxxxxxxx
+oauthtoken=xxxxxxxx
+```
 
 # Compose
 
@@ -174,7 +206,13 @@ To run a test service
     ./docker-compose -f dockerimages/streamlink/docker-compose.yml up -d test
 
 ## clientid.env
-Specify the clientid.env file using the clientid.env.example delivered
+Specify credentials using the `clientid.env.example` file as a template. Keep real `clientid.env` files out of git.
+
+To renew a Twitch playback auth token in Docker Compose:
+
+1. Update `oauthtoken`, `TWITCH_AUTH_TOKEN`, or `TWITCH_OAUTH_TOKEN` in your local env file.
+2. Restart the recorder container with `docker compose up -d` or your normal deployment command.
+3. Do not paste the token into issue reports or logs.
 
 ## default.env
 you can specify the default for compose here
@@ -209,15 +247,40 @@ To deploy this project on Kubernetes using Helm, follow these steps:
     ```
 
 3. **Prepare the Shared Secret:**
-    Before installing the chart, you must create a single, shared Kubernetes Secret containing the necessary API tokens and IDs for all your streamlink instances. The chart includes an example manifest at `kube/charts/templates/secret.example.yaml`.
-    *   Copy `secret.example.yaml` to a new file (e.g., `streamlink-secrets.yaml`).
-    *   Edit the new file:
-        *   Ensure the `metadata.name` is set to the desired shared secret name (the default and recommended name is `streamlink-secrets`).
-        *   Replace the placeholder values in the `data` section with your **base64 encoded** secrets (Twitch client ID/secret/token, Slack ID, Telegram bot token/chat ID). You can encode a value using `echo -n 'your-secret-value' | base64`.
-    *   Apply the secret manifest to your cluster **once**:
-        ```sh
-        kubectl apply -f streamlink-secrets.yaml -n streamlink
-        ```
+    Before installing the chart, you must create a single, shared Kubernetes Secret containing the necessary API tokens and IDs for all your streamlink instances. The chart includes an example manifest at `kube/charts/secret.example.yaml`.
+
+    Kubernetes Secret `data` values are base64 encoded, but base64 is **not encryption**. Do not commit real Secret manifests to git.
+
+    For a copy/paste-safe workflow that avoids writing secrets into shell history, put real values in a local env file that is outside git, restrict its permissions, and generate the Secret from that file:
+
+    ```sh
+    install -m 600 /dev/null ./streamlink-secrets.env
+    $EDITOR ./streamlink-secrets.env
+    kubectl create secret generic streamlink-secrets \
+      --from-env-file=./streamlink-secrets.env \
+      --namespace streamlink \
+      --dry-run=client \
+      -o yaml | kubectl apply -f -
+    ```
+
+    Example `streamlink-secrets.env` keys:
+
+    ```env
+    clientid=xxxxxxxx
+    clientsecret=xxxxxxxx
+    oauthtoken=xxxxxxxx # optional browser auth-token for Streamlink playback
+    slackid=xxxxxxxxx
+    telegrambottoken=xxxxxxxxx
+    telegramchatid=xxxxxxxxx
+    ```
+
+    To renew the Twitch playback auth token in Kubernetes:
+
+    1. Update `oauthtoken` in your local secret env file.
+    2. Re-run the `kubectl create secret generic ... --dry-run=client -o yaml | kubectl apply -f -` command above.
+    3. Roll out or restart the recorder deployment so the pod receives the updated Secret value.
+
+    If you prefer a manifest workflow, copy `kube/charts/secret.example.yaml` outside the repository, replace the placeholders, apply it with `kubectl apply -f`, and keep the real manifest out of git.
 
 4. **Customize Your `values.yaml`:**
     Create a `values.yaml` file (or use an existing one) for each streamlink instance you want to deploy. Ensure the `secretName` field is set to the name of the shared Secret you created in the previous step (e.g., `streamlink-secrets`). Here is an example configuration for one instance:
