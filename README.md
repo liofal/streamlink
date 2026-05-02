@@ -166,6 +166,34 @@ Treat the browser `auth-token` like an account secret:
 
 Avoid pasting real tokens directly into shell commands on shared systems because they may be saved in shell history or terminal logs.
 
+### Invalid playback auth-token behavior
+
+When `oauthtoken`, `TWITCH_AUTH_TOKEN`, or `TWITCH_OAUTH_TOKEN` is configured, the recorder validates the Twitch playback token at startup and periodically while running.
+
+The default invalid-token policy is `exit`:
+
+```env
+TWITCH_AUTH_INVALID_TOKEN_POLICY=exit
+```
+
+If Twitch confirms the playback token is invalid, the recorder logs a clear error, sends Slack/Telegram notification if configured, and exits non-zero. In Kubernetes this can surface as a restarting pod or `CrashLoopBackOff`; renew the token in the Secret and restart or roll out the deployment.
+
+To keep the process alive instead, set:
+
+```env
+TWITCH_AUTH_INVALID_TOKEN_POLICY=notify
+```
+
+In `notify` mode, the recorder logs/notifies the invalid token, keeps checking stream status, and skips recording attempts while the token remains known invalid.
+
+Validation interval defaults to one hour:
+
+```env
+TWITCH_AUTH_VALIDATION_INTERVAL=3600
+```
+
+Unknown validation failures, such as temporary network errors, do not cause the recorder to exit. Only confirmed invalid-token errors apply the invalid-token policy.
+
 # Docker
 
 For Docker, prefer an env file instead of inline `-e` flags for secrets:
