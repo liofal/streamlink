@@ -4,30 +4,56 @@
 	"name": "Python Development",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "dev",
-	"runServices": ["dev"],
-	"postCreateCommand": "pip install -r requirements.txt",
+	"runServices": [
+		"dev"
+	],
+	"postCreateCommand": "bash .devcontainer/post-create.sh",
 	"workspaceFolder": "/app",
 	"customizations": {
 		"vscode": {
-		  "settings": {
-			"terminal.integrated.shell.linux": "/bin/bash",
-			"terminal.integrated.defaultProfile.linux": "bash"
-		  }
+			"settings": {
+				"terminal.integrated.shell.linux": "/bin/bash",
+				"terminal.integrated.defaultProfile.linux": "bash"
+			},
+			"extensions": [
+				"openai.chatgpt"
+			]
 		}
-	}
-
+	},
+	"features": {
+		// "ghcr.io/dhoeric/features/google-cloud-cli:1": {},
+		// "ghcr.io/devcontainers/features/aws-cli:1": {},
+		// "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+		// "ghcr.io/devcontainers-extra/features/node-asdf:0": {},
+		// "ghcr.io/skriptfabrik/devcontainer-features/gitlab-cli:1": {},
+		// "ghcr.io/devcontainers-extra/features/terraform-asdf:2": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/devcontainers/features/node:1": {},
+		// "ghcr.io/devcontainers/features/go:1": {}
+	},
+	"mounts": [
+		"source=${localEnv:HOME}/.pi,target=/home/vscode/.pi,type=bind",
+		"source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind",
+		// "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind",
+		// "source=${localEnv:HOME}/.claude/.claude.json,target=/home/vscode/.claude.json,type=bind",
+		// "source=${localEnv:HOME}/.config/gcloud,target=/home/vscode/.config/gcloud,type=bind",
+		"source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind",
+		// "source=${localEnv:HOME}/.aws,target=/home/vscode/.aws,type=bind",
+		// "source=${localEnv:HOME}/Downloads/gitlab/innovation/ops,target=/workspaces/ops,type=bind,consistency=cached",
+		// "source=${localEnv:HOME}/.cache/terraform/plugin-cache,target=/home/vscode/.terraform.d/plugin-cache,type=bind",
+		// "source=${localEnv:HOME}/.cache/terraform/data,target=/home/vscode/.cache/terraform/data,type=bind"
+	],
+	"remoteEnv": {
+		"PATH": "${containerWorkspaceFolder}/node_modules/.bin:/usr/local/share/npm-global/bin:/usr/local/bin:${containerEnv:PATH}"
+	},
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
-
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
-
 	// Uncomment the next line to run commands after the container is created.
 	// "postCreateCommand": "cat /etc/os-release",
-
 	// Configure tool-specific properties.
 	// "customizations": {},
-
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "devcontainer"
 }
