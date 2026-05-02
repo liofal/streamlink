@@ -3,10 +3,6 @@ x-common: &common
     logging:
       driver: json-file
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
     volumes:
     - /volume1/twitch:/app/download
 
@@ -14,6 +10,10 @@ services:
   streamlink:
     <<: *common
     image: ghcr.io/liofal/streamlink:4.0.0
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     build:
       context: .
       dockerfile: Dockerfile
@@ -28,7 +28,12 @@ services:
 
   ffmpeg:
     <<: *common
-    image: ghcr.io/liofal/ffmpeg6:1.0.0
+    image: ghcr.io/liofal/ffmpeg:1.0.1
+    deploy:
+      resources:
+        limits:
+          # Recommended minimum for large TS to MP4 remuxing.
+          memory: 512M
     container_name: ffmpeg_converter
     environment:
       - SLEEPTIME=600

@@ -256,6 +256,11 @@ The `docker-compose.yml` file includes an FFmpeg service that automatically conv
 
 - The `SLEEPTIME` environment variable defines the interval (in seconds) between conversion checks. By default, it is set to 600 seconds (10 minutes).
 - The `WORKDIR` environment variable specifies the directory where the TS files are located and where the converted MP4 files will be saved.
+- The compose example uses `ghcr.io/liofal/ffmpeg:1.0.1`. This image supersedes the older `ffmpeg6` image name.
+
+For large recordings, give the FFmpeg container at least 512M of memory or remove the memory limit. Very low limits such as 256M can cause FFmpeg to be killed while remuxing large `.ts` files.
+
+If conversion fails, the FFmpeg image removes partial `.mp4` output and renames the source file from `video.ts` to `video.ts.failed`. This prevents restart policies from retrying the same failing file indefinitely.
 
 To customize the FFmpeg conversion settings, you can modify the environment variables in the `docker-compose.yml` file.
 
@@ -321,8 +326,8 @@ To deploy this project on Kubernetes using Helm, follow these steps:
         pullPolicy: Always
       ffmpeg: 
         repository: ghcr.io/liofal
-        name: ffmpeg6
-        tag: 1.0.0
+        name: ffmpeg
+        tag: 1.0.1
         pullPolicy: Always
 
     streamer:
