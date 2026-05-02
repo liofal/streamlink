@@ -3,3 +3,4 @@ kube/charts/values-*.yaml
 kube/deploy.sh
 kube/undeploy.sh
 kube/charts/secret.yaml
+.worktrees/
