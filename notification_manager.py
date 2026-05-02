@@ -1,4 +1,5 @@
 import json
+import re
 import requests
 from abc import ABC, abstractmethod
 
@@ -6,6 +7,27 @@ import logging
 
 logger = logging.getLogger(__name__)
 from enum import Enum, auto
+
+
+def redact_url(url):
+    if not url:
+        return url
+
+    url = re.sub(r"(https://hooks\.slack\.com/services/)[^\s]+", r"\1<redacted>", url)
+    url = re.sub(r"(https://api\.telegram\.org/bot)[^/\s]+", r"\1<redacted>", url)
+    return url
+
+
+def log_http_error(service, exc):
+    response = getattr(exc, "response", None)
+    status_code = getattr(response, "status_code", None)
+    reason = getattr(response, "reason", None)
+    url = redact_url(getattr(response, "url", None))
+
+    if response is not None:
+        logger.error("HTTP error occurred while sending message to %s: status=%s reason=%s url=%s", service, status_code, reason, url)
+    else:
+        logger.error("HTTP error occurred while sending message to %s: %s", service, redact_url(str(exc)))
 
 class NotifierType(Enum):
     SLACK = auto()
@@ -56,9 +78,9 @@ class SlackNotifier(Notifier):
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error occurred: {e}")
+            log_http_error("Slack", e)
         except Exception as e:
-            logger.error(f"Unexpected error occurred while sending message to Slack: {e}")
+            logger.error(f"Unexpected error occurred while sending message to Slack: {redact_url(str(e))}")
 
 class TelegramNotifier(Notifier):
     def __init__(self, bot_token, chat_id):
@@ -81,9 +103,9 @@ class TelegramNotifier(Notifier):
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error occurred: {e}")
+            log_http_error("Telegram", e)
         except Exception as exc:
-            logger.error(f"Unexpected error occurred while sending message to Telegram: {exc}")
+            logger.error(f"Unexpected error occurred while sending message to Telegram: {redact_url(str(exc))}")
 
 class NotifierFactory:
     _notifiers = {

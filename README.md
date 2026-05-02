@@ -22,6 +22,11 @@ git remote set-head origin -a
 
 # Notes
 
+## Next
+Secrets are now read directly from environment variables at runtime instead of being expanded into process arguments by the Docker entrypoint. This prevents Twitch/Telegram/Slack tokens from showing up in `ps` output. Notification HTTP error logs also redact token-bearing Telegram and Slack URLs.
+
+Recording failures are logged and the monitor loop continues checking instead of exiting the container.
+
 ## 4.0.0
 Update dependency streamlink to v8.0.0
 Removed deprecated `twitch-disable-hosting` and `twitch-disable-ads` options (handled automatically by Streamlink 8.x)
@@ -116,7 +121,7 @@ Keywords can always be used
 
 # Variables
 
-Environment variables are primarily used for Docker deployments. For Kubernetes/Helm deployments, configuration is managed via the `values.yaml` file and Kubernetes Secrets.
+Environment variables are primarily used for Docker deployments. For Kubernetes/Helm deployments, configuration is managed via the `values.yaml` file and Kubernetes Secrets. Secrets are read from the process environment at runtime and are not passed as command-line arguments.
 
 ## timer
 Specifies the interval (in seconds) to check for stream status.
