@@ -115,7 +115,6 @@ def apply_invalid_auth_policy(config, notifier_manager, state):
 def validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, state=None, force_notify=False):
     state = state or RecorderState()
     status = streamlink_manager.validate_oauth_token(config.user)
-    state.auth_status = status
     state.last_auth_validation_time = time.time()
 
     if status == AuthValidationStatus.INVALID:
@@ -127,10 +126,16 @@ def validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, 
         if state.invalid_auth_notified:
             notifier_manager.notify_all(f"Twitch playback auth token validation recovered for {config.user}. Recording is enabled again.")
         state.invalid_auth_notified = False
+        state.auth_status = status
+        return state
 
     if status == AuthValidationStatus.UNKNOWN:
         logger.warning("Unable to validate Twitch playback auth token for %s; will retry later", config.user)
+        if state.auth_status != AuthValidationStatus.INVALID:
+            state.auth_status = status
+        return state
 
+    state.auth_status = status
     return state
 
 

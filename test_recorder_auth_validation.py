@@ -89,6 +89,25 @@ class TestRecorderAuthValidation(unittest.TestCase):
 
         self.assertFalse(streamlink_recorder.should_attempt_recording(self.make_config(policy="notify"), state))
 
+    def test_unknown_validation_preserves_prior_invalid_state(self):
+        config = self.make_config(policy="notify")
+        notifier = MagicMock()
+        streamlink_manager = MagicMock()
+        streamlink_manager.validate_oauth_token.return_value = AuthValidationStatus.UNKNOWN
+
+        state = streamlink_recorder.RecorderState(
+            auth_status=AuthValidationStatus.INVALID,
+            invalid_auth_notified=True,
+        )
+
+        result = streamlink_recorder.validate_auth_or_apply_policy(
+            config, streamlink_manager, notifier, state=state
+        )
+
+        self.assertEqual(result.auth_status, AuthValidationStatus.INVALID)
+        self.assertFalse(streamlink_recorder.should_attempt_recording(config, result))
+        notifier.notify_all.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
