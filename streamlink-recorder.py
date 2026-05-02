@@ -30,6 +30,8 @@ class AppConfig:
         telegram_bot_token,
         telegram_chat_id,
         oauth_token,
+        auth_invalid_policy,
+        auth_validation_interval,
     ):
         self.timer = timer
         self.user = user
@@ -41,6 +43,8 @@ class AppConfig:
         self.telegram_bot_token = telegram_bot_token
         self.telegram_chat_id = telegram_chat_id
         self.oauth_token = oauth_token
+        self.auth_invalid_policy = auth_invalid_policy
+        self.auth_validation_interval = auth_validation_interval
 
 
 def first_config_value(cli_value, env_names, default=None):
@@ -68,6 +72,20 @@ def parse_timer_value(parser, value):
         return int(value)
     except (TypeError, ValueError):
         parser.error("Invalid integer for timer; set -timer/TIMER to a whole number")
+
+
+def parse_auth_validation_interval(parser, value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        parser.error("Invalid integer for auth validation interval; set -authvalidationinterval/TWITCH_AUTH_VALIDATION_INTERVAL to a whole number")
+
+
+def parse_auth_invalid_policy(parser, value):
+    policy = str(value).lower()
+    if policy not in ("exit", "notify"):
+        parser.error("Invalid auth invalid token policy; expected exit or notify")
+    return policy
 
 def loop_check(config):
     twitch_manager = TwitchManager(config)
@@ -102,6 +120,8 @@ def parse_arguments(argv=None):
     parser.add_argument("-telegrambottoken", help="Your Telegram bot token")
     parser.add_argument("-telegramchatid", help="Your Telegram chat ID where the bot will send messages")
     parser.add_argument("-oauthtoken", help="Your OAuth token for Twitch API")
+    parser.add_argument("-authinvalidpolicy", help="What to do when Twitch playback auth token is invalid: exit or notify")
+    parser.add_argument("-authvalidationinterval", help="Seconds between Twitch playback auth token validation checks")
     args = parser.parse_args(argv)
 
     user = require_config(
@@ -128,6 +148,15 @@ def parse_arguments(argv=None):
 
     timer = parse_timer_value(parser, first_config_value(args.timer, ("TIMER", "timer"), 240))
 
+    auth_invalid_policy = parse_auth_invalid_policy(
+        parser,
+        first_config_value(args.authinvalidpolicy, ("TWITCH_AUTH_INVALID_TOKEN_POLICY", "authinvalidpolicy"), "exit"),
+    )
+    auth_validation_interval = parse_auth_validation_interval(
+        parser,
+        first_config_value(args.authvalidationinterval, ("TWITCH_AUTH_VALIDATION_INTERVAL", "authvalidationinterval"), 3600),
+    )
+
     return AppConfig(
         timer=timer,
         user=user,
@@ -139,6 +168,8 @@ def parse_arguments(argv=None):
         telegram_bot_token=first_config_value(args.telegrambottoken, ("TELEGRAM_BOT_TOKEN", "telegrambottoken")),
         telegram_chat_id=first_config_value(args.telegramchatid, ("TELEGRAM_CHAT_ID", "telegramchatid")),
         oauth_token=first_config_value(args.oauthtoken, ("TWITCH_AUTH_TOKEN", "TWITCH_OAUTH_TOKEN", "oauthtoken")),
+        auth_invalid_policy=auth_invalid_policy,
+        auth_validation_interval=auth_validation_interval,
     )
 
 def main():
