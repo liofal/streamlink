@@ -8,6 +8,7 @@
 		"dev"
 	],
 	"postCreateCommand": "bash .devcontainer/post-create.sh",
+	"postStartCommand": "bash .devcontainer/ensure-pi.sh",
 	"workspaceFolder": "/app",
 	"customizations": {
 		"vscode": {
@@ -44,7 +45,7 @@
 		// "source=${localEnv:HOME}/.cache/terraform/data,target=/home/vscode/.cache/terraform/data,type=bind"
 	],
 	"remoteEnv": {
-		"PATH": "${containerWorkspaceFolder}/node_modules/.bin:/usr/local/share/npm-global/bin:/usr/local/bin:${containerEnv:PATH}"
+		"PATH": "/home/vscode/.pi/npm-global/bin:${containerWorkspaceFolder}/node_modules/.bin:/usr/local/share/npm-global/bin:/usr/local/bin:${containerEnv:PATH}"
 	},
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
