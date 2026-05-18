@@ -8,7 +8,6 @@
 		"dev"
 	],
 	"postCreateCommand": "bash .devcontainer/post-create.sh",
-	"postStartCommand": "bash .devcontainer/ensure-pi.sh",
 	"workspaceFolder": "/app",
 	"customizations": {
 		"vscode": {
@@ -17,8 +16,12 @@
 				"terminal.integrated.defaultProfile.linux": "bash"
 			},
 			"extensions": [
-				"openai.chatgpt"
-			]
+				"openai.chatgpt",
+				"pi0.pi-vscode"
+			],
+			"settings": {
+				"pi-vscode.path": "/home/vscode/.pi/npm-global/bin/pi"
+			}
 		}
 	},
 	"features": {
