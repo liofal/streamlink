@@ -6,6 +6,6 @@ streamlink==8.4.0
 twitchAPI==4.5.0
 aiohttp==3.14.2
 urllib3==2.7.0
-pyasn1==0.6.3
+pyasn1==0.6.4
 pre-commit==4.6.1
 commitizen==4.16.5
