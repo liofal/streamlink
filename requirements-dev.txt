@@ -1,0 +1,5 @@
+# Development tools only. Never installed in the Docker image.
+# Runtime dependencies live in requirements.txt.
+-r requirements.txt
+pre-commit==4.7.0
+commitizen==4.19.3
