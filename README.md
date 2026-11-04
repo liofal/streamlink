@@ -389,6 +389,10 @@ To deploy this project on Kubernetes using Helm, follow these steps:
     helm upgrade my-streamlink streamlink/streamlink -n streamlink -f /path/to/your/values.yaml
     ```
 
+    The Deployment uses the `Recreate` strategy, so an upgrade stops the old pod before starting the new one; two recorders never write to the same folder. Changing the streamer config (`user`, `quality`, `timer`) also restarts the pod.
+
+    **Resources and liveness:** both containers have memory requests and limits (`resources` in `values.yaml`; ffmpeg gets 1Gi, see #40). The recorder touches `/tmp/streamlink-recorder.heartbeat` on every check and every 30 seconds while recording. A liveness probe restarts it when that file is older than `max(timer, 600) + 300` seconds. Override this with `livenessProbe.maxHeartbeatAgeSeconds`, or disable the probe with `livenessProbe.enabled: false`.
+
 7. **Uninstall the Helm Release:**
     To remove the deployment (this does not remove the Secret):
     ```sh

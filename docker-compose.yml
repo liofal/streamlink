@@ -17,11 +17,12 @@ x-common: &common
 services:
   streamlink:
     <<: *common
-    image: ghcr.io/liofal/streamlink:4.0.0
+    image: ghcr.io/liofal/streamlink:5.0.0
     deploy:
       resources:
         limits:
-          memory: 256M
+          # Same as the Helm chart: Python + streamlink buffers need about 100-150M while recording.
+          memory: 512M
     build:
       context: .
       dockerfile: Dockerfile

@@ -54,3 +54,36 @@ securityContext:
   capabilities:
     drop:
     - ALL
+
+# Requests and limits per container. No CPU limits: throttling a recorder can make
+# the stream time out. The recorder uses about 100-150Mi while recording (Python,
+# streamlink's 16Mi ring buffer, HLS segments). ffmpeg remuxes (-c copy) large .ts
+# files and was OOM-killed at 256M (#40); an OOM leaves the file as .ts.failed.
+resources:
+  streamlink:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  ffmpeg:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+# Exec probe on the recorder's heartbeat file (/tmp/streamlink-recorder.heartbeat).
+# A hung recorder is restarted; long recordings and offline sleeps keep beating.
+# maxHeartbeatAgeSeconds empty = max(streamer.timer, 600) + 300 seconds.
+livenessProbe:
+  enabled: true
+  maxHeartbeatAgeSeconds: ""
+  initialDelaySeconds: 60
+  periodSeconds: 60
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+# Size cap for each container's /tmp emptyDir (streamlink cache and heartbeat only).
+# Exceeding it evicts the pod.
+tmpSizeLimit: 64Mi

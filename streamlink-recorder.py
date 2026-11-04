@@ -13,12 +13,14 @@ import sys
 from dataclasses import dataclass
 
 from twitch_manager import TwitchManager, StreamStatus
-from streamlink_manager import AuthValidationStatus, NoStreamsAvailable, StopRequested, StreamlinkManager, install_signal_handlers, stop_requested
+from streamlink_manager import AuthValidationStatus, NoStreamsAvailable, StopRequested, StreamlinkManager, install_signal_handlers, stop_requested, beat
 from notification_manager import NotificationManager
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Sleeps between heartbeats must stay under the Helm liveness threshold,
+# max(timer, MAX_ERROR_BACKOFF_SECONDS) + 300 (kube/charts/templates/deployment.yaml).
 DEFAULT_TWITCH_ERROR_THRESHOLD = 5
 MAX_ERROR_BACKOFF_SECONDS = 600
 DEFAULT_RECORD_RETRIES = 5
@@ -312,9 +314,11 @@ def loop_check(config):
 
 
 def _run_loop(config, twitch_manager, streamlink_manager, notifier_manager):
+    beat()
     state = validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, force_notify=True)
 
     while True:
+        beat()
         if stop_requested():
             raise StopRequested()  # a stop whose exception was swallowed upstream
         if should_validate_auth(config, state):
