@@ -67,9 +67,33 @@ class TestStreamlinkManager(unittest.TestCase):
         
         self.assertNotIn("twitch-disable-ads", args_list)
         self.assertNotIn("twitch-disable-hosting", args_list)
-        self.assertIn("retry-max", args_list)
-        self.assertIn("retry-streams", args_list)
+        self.assertNotIn("retry-max", args_list)
+        self.assertNotIn("retry-streams", args_list)
         self.assertIn("http-headers", args_list)
+
+    @patch('streamlink_manager.streamlink.Streamlink')
+    def test_empty_streams_raise_no_streams_available_without_file(self, mock_streamlink_cls):
+        mock_streamlink_cls.return_value.streams.return_value = {}
+        on_start = MagicMock()
+        with patch('builtins.open', unittest.mock.mock_open()) as mock_file:
+            with self.assertRaises(streamlink_manager.NoStreamsAvailable):
+                self.manager.run_streamlink("testuser", "testfile", on_start=on_start)
+        mock_file.assert_not_called()
+        on_start.assert_not_called()
+
+    @patch('streamlink_manager.streamlink.Streamlink')
+    def test_on_start_called_after_stream_opens(self, mock_streamlink_cls):
+        stream = MagicMock(url="http://example.com/playlist.m3u8")
+        fd = MagicMock()
+        fd.read.side_effect = [b'data', b'']
+        stream.open.return_value = fd
+        mock_streamlink_cls.return_value.streams.return_value = {"best": stream}
+        order = []
+        stream.open.side_effect = lambda: order.append("open") or fd
+        with patch('builtins.open', unittest.mock.mock_open()), patch('streamlink_manager.shutil.move'), \
+                patch('streamlink_manager.os.path.exists', return_value=True):
+            self.manager.run_streamlink("testuser", "testfile", on_start=lambda: order.append("start"))
+        self.assertEqual(order, ["open", "start"])
 
     def test_is_invalid_twitch_auth_error_detects_authorization_token_error(self):
         error = Exception('Unauthorized: The "Authorization" token is invalid.')

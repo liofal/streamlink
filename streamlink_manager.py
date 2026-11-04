@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 INCOMPLETE_SUFFIX = ".incomplete"
 
 
+class NoStreamsAvailable(Exception):
+    """Twitch reports the channel live but streamlink found no playable stream yet."""
+
+
 class StopRequested(KeyboardInterrupt):
     """Raised by the signal handler to unwind the recorder.
 
@@ -119,10 +123,13 @@ class StreamlinkManager:
             else:
                 shutil.move(temp_filename, f"{final_filename}{INCOMPLETE_SUFFIX}")
 
-    def run_streamlink(self, user, recorded_filename):
+    def run_streamlink(self, user, recorded_filename, on_start=None):
+        """Record until the stream ends. on_start() is called once the stream is open."""
         session = self.create_session()
         self.configure_session_auth(session)
         streams = session.streams(f"twitch.tv/{user}")
+        if not streams:
+            raise NoStreamsAvailable
         quality = select_quality(self.config.quality, streams)
         stream = streams[quality]
         extension = self.get_stream_extension(stream)
@@ -130,6 +137,8 @@ class StreamlinkManager:
         final_filename = f"{recorded_filename}.{extension}"
 
         fd = stream.open()
+        if on_start is not None:
+            on_start()
         complete = False
         try:
             try:
@@ -159,10 +168,9 @@ class StreamlinkManager:
                 raise stop
 
     def create_session(self):
-        session = streamlink.Streamlink()
-        session.set_option("retry-max", 5)
-        session.set_option("retry-streams", 60)
-        return session
+        # No retry options here: retry-max/retry-streams are streamlink_cli-only and
+        # the library ignores them. Start retries are handled by the recorder loop.
+        return streamlink.Streamlink()
 
     def configure_session_auth(self, session, oauth_token=None):
         token = self.config.oauth_token if oauth_token is None else oauth_token
