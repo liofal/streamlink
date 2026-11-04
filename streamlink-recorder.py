@@ -13,7 +13,7 @@ import sys
 from dataclasses import dataclass
 
 from twitch_manager import TwitchManager, StreamStatus
-from streamlink_manager import AuthValidationStatus, StreamlinkManager
+from streamlink_manager import AuthValidationStatus, StopRequested, StreamlinkManager, install_signal_handlers, stop_requested
 from notification_manager import NotificationManager
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -254,6 +254,8 @@ def loop_check(config):
     state = validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, force_notify=True)
 
     while True:
+        if stop_requested():
+            raise StopRequested()  # a stop whose exception was swallowed upstream
         if should_validate_auth(config, state):
             state = validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, state=state)
         stream_status, title = twitch_manager.check_user(config.user)
@@ -356,7 +358,11 @@ def parse_arguments(argv=None):
 def main():
     config = parse_arguments()
     logger.info(f"Checking for {config.user} every {config.timer} seconds. Record with {config.quality} quality.")
-    loop_check(config)
+    install_signal_handlers()
+    try:
+        loop_check(config)
+    except StopRequested:
+        logger.info("Stop requested, exiting.")
 
 if __name__ == "__main__":
     main()

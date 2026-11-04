@@ -263,6 +263,12 @@ For large recordings, give the FFmpeg container at least 512M of memory or remov
 
 If conversion fails, the FFmpeg image removes partial `.mp4` output and renames the source file from `video.ts` to `video.ts.failed`. This prevents restart policies from retrying the same failing file indefinitely.
 
+## Shutdown and failed recordings
+
+On SIGTERM or SIGINT (`docker stop`, pod termination, Ctrl-C) the recorder stops the current recording, closes the file, renames it to its final `.ts`/`.mp4` name and exits. A stop sends no "done" notification.
+
+If a recording fails midway (network stall, disk full), the data is kept as `<name>.ts.incomplete` (or `.mp4.incomplete`) instead of a complete-looking file. The FFmpeg sidecar only converts `*.ts`, so it skips these. Rename the file to `.ts` to convert it anyway. A recording that failed before writing any data leaves no file.
+
 To customize the FFmpeg conversion settings, you can modify the environment variables in the `docker-compose.yml` file.
 
 # Kubernetes Deployment with Helm
