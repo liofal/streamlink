@@ -261,5 +261,38 @@ class TestConfigParsing(unittest.TestCase):
         self.assertIn("Invalid integer for auth validation interval", stderr.getvalue())
 
 
+class TestConfigBounds(unittest.TestCase):
+    BASE = ["-user", "u", "-clientid", "c", "-clientsecret", "s"]
+
+    def parse(self, *extra):
+        with patch.dict(os.environ, {}, clear=True), patch("sys.stderr", io.StringIO()):
+            return streamlink_recorder.parse_arguments(self.BASE + list(extra))
+
+    def test_timer_below_one_rejected(self):
+        for value in ("0", "-5"):
+            with self.subTest(value=value), self.assertRaises(SystemExit):
+                self.parse("-timer", value)
+
+    def test_small_timer_accepted_with_warning(self):
+        with self.assertLogs(streamlink_recorder.logger, "WARNING"):
+            self.assertEqual(self.parse("-timer", "5").timer, 5)
+
+    def test_timer_at_recommended_has_no_warning(self):
+        with patch.object(streamlink_recorder.logger, "warning") as warn:
+            self.assertEqual(self.parse("-timer", "15").timer, 15)
+        warn.assert_not_called()
+
+    def test_twitch_error_threshold_below_one_rejected(self):
+        with self.assertRaises(SystemExit):
+            self.parse("-twitcherrorthreshold", "0")
+        self.assertEqual(self.parse("-twitcherrorthreshold", "1").twitch_error_threshold, 1)
+
+    def test_auth_validation_interval_below_one_rejected(self):
+        for value in ("0", "-1"):
+            with self.subTest(value=value), self.assertRaises(SystemExit):
+                self.parse("-authvalidationinterval", value)
+        self.assertEqual(self.parse("-authvalidationinterval", "1").auth_validation_interval, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

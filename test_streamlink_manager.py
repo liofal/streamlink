@@ -69,7 +69,29 @@ class TestStreamlinkManager(unittest.TestCase):
         self.assertNotIn("twitch-disable-hosting", args_list)
         self.assertNotIn("retry-max", args_list)
         self.assertNotIn("retry-streams", args_list)
-        self.assertIn("http-headers", args_list)
+        self.assertNotIn("http-headers", args_list)
+
+    @patch('streamlink_manager.streamlink.Streamlink')
+    def test_run_streamlink_passes_token_as_api_header_only(self, mock_streamlink_cls):
+        mock_session = mock_streamlink_cls.return_value
+        mock_session.streams.return_value = {}
+        with self.assertRaises(streamlink_manager.NoStreamsAvailable):
+            self.manager.run_streamlink("testuser", "testfile")
+        kwargs = mock_session.streams.call_args.kwargs
+        self.assertEqual(kwargs["options"].get("api-header"), [("Authorization", "OAuth test_token")])
+        self.assertNotIn("http-headers", [c[0][0] for c in mock_session.set_option.call_args_list])
+
+    def test_plugin_options_none_without_token(self):
+        self.config.oauth_token = None
+        self.assertIsNone(self.manager.plugin_options())
+
+    def test_real_twitch_plugin_sends_token_only_in_api_headers(self):
+        import streamlink
+        session = streamlink.Streamlink()
+        _, plugin_cls, url = session.resolve_url("twitch.tv/testuser")
+        plugin = plugin_cls(session, url, self.manager.plugin_options())
+        self.assertEqual(plugin.api.headers["Authorization"], "OAuth test_token")
+        self.assertNotIn("Authorization", session.http.headers)
 
     @patch('streamlink_manager.streamlink.Streamlink')
     def test_empty_streams_raise_no_streams_available_without_file(self, mock_streamlink_cls):
@@ -120,7 +142,9 @@ class TestStreamlinkManager(unittest.TestCase):
         status = self.manager.validate_oauth_token("testuser")
 
         self.assertEqual(status, AuthValidationStatus.VALID_OR_NOT_REJECTED)
-        mock_session.streams.assert_called_once_with("twitch.tv/testuser")
+        args, kwargs = mock_session.streams.call_args
+        self.assertEqual(args, ("twitch.tv/testuser",))
+        self.assertEqual(kwargs["options"].get("api-header"), [("Authorization", "OAuth test_token")])
 
     @patch('streamlink_manager.streamlink.Streamlink')
     def test_validate_oauth_token_invalid(self, mock_streamlink_cls):

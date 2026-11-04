@@ -185,5 +185,26 @@ class TestTwitchClientReset(unittest.TestCase):
         self.assertEqual(len(created), 2)
 
 
+class TestGameList(unittest.TestCase):
+    def check(self, game_list, game_id):
+        config = _config()
+        config.game_list = game_list
+        manager = TwitchManager(config)
+        user = MagicMock(id="1")
+        stream = MagicMock(game_id=game_id, title="t")
+        with patch.object(manager, "get_from_twitch", side_effect=[user, stream]):
+            return manager.check_user("x")[0]
+
+    def test_entries_are_stripped(self):
+        self.assertEqual(self.check("1, 2", "2"), StreamStatus.ONLINE)
+
+    def test_empty_entries_dropped(self):
+        self.assertEqual(self.check("1,,2,", "2"), StreamStatus.ONLINE)
+        self.assertEqual(self.check("1,,2,", "3"), StreamStatus.UNDESIRED_GAME)
+
+    def test_blank_list_means_no_filter(self):
+        self.assertEqual(self.check(" , ", "9"), StreamStatus.ONLINE)
+
+
 if __name__ == "__main__":
     unittest.main()

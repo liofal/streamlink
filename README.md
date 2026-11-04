@@ -123,7 +123,7 @@ Existing lowercase variable names remain supported for compatibility. New deploy
 | Purpose | Existing name | Preferred alias |
 | --- | --- | --- |
 | Twitch user to monitor | `user` | `TWITCH_USER` |
-| Check interval in seconds | `timer` | `TIMER` |
+| Check interval in seconds (minimum 1; under 15 logs a rate-limit warning) | `timer` | `TIMER` |
 | Recording quality | `quality` | `STREAM_QUALITY` |
 | Twitch Helix client ID | `clientid` | `TWITCH_CLIENT_ID` |
 | Twitch Helix client secret | `clientsecret` | `TWITCH_CLIENT_SECRET` |
@@ -195,6 +195,11 @@ TWITCH_AUTH_VALIDATION_INTERVAL=3600
 ```
 
 Unknown validation failures, such as temporary network errors, do not cause the recorder to exit. Only confirmed invalid-token errors apply the invalid-token policy.
+
+Known limitations:
+
+- Validation runs between recordings, so it pauses for the whole length of a recording. An invalid token is noticed after the recording ends.
+- If Twitch rate-limits (HTTP 429) a stream check, the library waits for the limit to reset and the check is read as offline. The next check corrects it.
 
 # Docker
 
@@ -309,6 +314,7 @@ To deploy this project on Kubernetes using Helm, follow these steps:
     For a copy/paste-safe workflow that avoids writing secrets into shell history, put real values in a local env file that is outside git, restrict its permissions, and generate the Secret from that file:
 
     ```sh
+    # streamlink-secrets.env is gitignored; never commit it
     install -m 600 /dev/null ./streamlink-secrets.env
     $EDITOR ./streamlink-secrets.env
     kubectl create secret generic streamlink-secrets \

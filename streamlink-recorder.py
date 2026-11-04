@@ -81,25 +81,40 @@ def require_config(parser, value, field_name, cli_arg, env_names):
     parser.error(f"Missing required configuration: {field_name} (set {cli_arg}, {env_hint})")
 
 
+MIN_TIMER_SECONDS = 1
+RECOMMENDED_TIMER_SECONDS = 15
+
+
 def parse_timer_value(parser, value):
     try:
-        return int(value)
+        timer = int(value)
     except (TypeError, ValueError):
         parser.error("Invalid integer for timer; set -timer/TIMER to a whole number")
+    if timer < MIN_TIMER_SECONDS:
+        parser.error("Invalid timer; set -timer/TIMER to 1 or more seconds")
+    if timer < RECOMMENDED_TIMER_SECONDS:
+        logger.warning("Timer of %s seconds is below the recommended %s and may hit Twitch rate limits", timer, RECOMMENDED_TIMER_SECONDS)
+    return timer
 
 
 def parse_auth_validation_interval(parser, value):
     try:
-        return int(value)
+        interval = int(value)
     except (TypeError, ValueError):
         parser.error("Invalid integer for auth validation interval; set -authvalidationinterval/TWITCH_AUTH_VALIDATION_INTERVAL to a whole number")
+    if interval < 1:
+        parser.error("Invalid auth validation interval; set -authvalidationinterval/TWITCH_AUTH_VALIDATION_INTERVAL to 1 or more seconds")
+    return interval
 
 
 def parse_twitch_error_threshold(parser, value):
     try:
-        return int(value)
+        threshold = int(value)
     except (TypeError, ValueError):
         parser.error("Invalid integer for Twitch error threshold; set -twitcherrorthreshold/TWITCH_ERROR_NOTIFY_THRESHOLD to a whole number")
+    if threshold < 1:
+        parser.error("Invalid Twitch error threshold; set -twitcherrorthreshold/TWITCH_ERROR_NOTIFY_THRESHOLD to 1 or more")
+    return threshold
 
 
 def parse_record_retries(parser, value):
