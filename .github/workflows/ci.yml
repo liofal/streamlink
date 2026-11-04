@@ -65,5 +65,20 @@ jobs:
       - name: Build image (no push)
         run: docker build --pull -t streamlink-recorder:ci .
 
-      - name: Image smoke test
-        run: docker run --rm streamlink-recorder:ci --help
+      - name: Image smoke test (hardened, read-only root filesystem)
+        run: |
+          docker run --rm --read-only --tmpfs /tmp --cap-drop ALL \
+            --security-opt no-new-privileges streamlink-recorder:ci --help
+
+      - name: Image runs as non-root 1027
+        run: test "$(docker run --rm --entrypoint id streamlink-recorder:ci -u)" = 1027
+
+      - name: Download directory is writable with a read-only root filesystem
+        run: |
+          d="$(mktemp -d)"
+          chmod 777 "$d"
+          docker run --rm --read-only --tmpfs /tmp --cap-drop ALL \
+            --security-opt no-new-privileges -v "$d":/app/download \
+            --entrypoint python streamlink-recorder:ci \
+            -c "open('/app/download/ci.part', 'wb').write(b'x')"
+          test -s "$d/ci.part"

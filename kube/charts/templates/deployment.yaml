@@ -2,23 +2,32 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: streamlink-{{ .Values.streamer.name }}
-  
+
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: streamlink-{{ .Values.streamer.name }}
-  template: 
+  template:
     metadata:
       labels:
         app: streamlink-{{ .Values.streamer.name }}
     spec:
       serviceAccountName: streamlink-{{ .Values.streamer.name }}
+      automountServiceAccountToken: false
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       restartPolicy: Always
       containers:
       - name: streamlink-{{ .Values.streamer.name }}
         image: "{{ .Values.image.streamlink.repository }}/{{ .Values.image.streamlink.name }}:{{ .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.streamlink.pullPolicy }}
+        {{- with .Values.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         envFrom:
         - configMapRef:
             name: streamlink-config-{{ .Values.streamer.name }}
@@ -28,10 +37,16 @@ spec:
         - name: download-volume
           mountPath: /app/download
           subPath: {{ .Values.streamer.name }}
-      
+        - name: tmp-streamlink
+          mountPath: /tmp
+
       - name: ffmpeg-{{ .Values.streamer.name }}
         image: "{{ .Values.image.ffmpeg.repository }}/{{ .Values.image.ffmpeg.name }}:{{ .Values.image.ffmpeg.tag }}"
         imagePullPolicy: {{ .Values.image.ffmpeg.pullPolicy }}
+        {{- with .Values.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         env:
         - name: SLEEPTIME
           value: "{{ .Values.ffmpeg.sleeptime }}"
@@ -41,9 +56,15 @@ spec:
         - name: download-volume
           mountPath: /app/download
           subPath: {{ .Values.streamer.name }}
-     
+        - name: tmp-ffmpeg
+          mountPath: /tmp
+
       volumes:
       - name: download-volume
         nfs:
           server: {{ .Values.nfs.server }}
           path: {{ .Values.nfs.path }}
+      - name: tmp-streamlink
+        emptyDir: {}
+      - name: tmp-ffmpeg
+        emptyDir: {}

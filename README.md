@@ -252,6 +252,20 @@ you can specify the default for compose here
 
 _**Warning:** The folder does not exist in the container and need te be created as a volume in order to be accessed from outside your container, you should map it if you want to access it_
 
+## Running as non-root (5.0.0 and later)
+
+The image runs as user `1027`, group `100` (`users`), not root. Docker Compose and the Helm chart also use a read-only root filesystem, drop all capabilities and block privilege escalation. Only the download volume and `/tmp` are writable.
+
+**Before upgrading**, make the download folder writable for `1027:100`. Folders and files written by older, root-run containers are usually owned by root:
+
+```sh
+# On the NAS / host, for each streamer folder
+chown -R 1027:100 /volume1/twitch/<streamer>
+```
+
+- **Kubernetes:** pre-create the NFS folder of every new streamer (`<nfs.path>/<streamer.name>`) owned by `1027:100` before you install the chart. Otherwise kubelet creates the `subPath` folder as root and the recorder cannot write to it. The user and group are set by `podSecurityContext` (`runAsUser`, `runAsGroup`, `fsGroup`) in the chart values. `ffmpeg.workdir` must be `/app/download`.
+- **Docker:** a new named volume inherits the right owner from the image. For an existing volume or bind mount, `chown` it as above, or run with `--user <uid>:<gid>` matching its owner. `--user 0:0` restores the old root behavior, but it is not recommended.
+
 ## FFmpeg Conversion
 
 The `docker-compose.yml` file includes an FFmpeg service that automatically converts TS container files to MP4. The FFmpeg service is configured to run periodically and process files in the `/app/download` directory.
