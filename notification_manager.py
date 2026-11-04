@@ -1,4 +1,7 @@
 import json
+import queue
+import threading
+import time
 import requests
 from abc import ABC, abstractmethod
 
@@ -37,10 +40,24 @@ def _log_notification_unexpected_error(service_name, error):
         type(error).__name__,
     )
 
+QUEUE_MAXSIZE = 50
+FLUSH_TIMEOUT_SECONDS = 5
+
+
 class NotificationManager:
+    """Fans messages out to the notifiers from one background daemon thread.
+
+    notify_all() only enqueues, so a slow or down Slack/Telegram never delays
+    recording. A single FIFO worker keeps messages in order. Stop signals are
+    delivered to the main thread only, and the worker catches Exception only.
+    """
+
     def __init__(self, config):
         self.config = config
         self.notifiers = []
+        self._queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
+        self._worker = None
+        self._worker_lock = threading.Lock()
         self.initialize_notifiers()
 
     def initialize_notifiers(self):
@@ -57,8 +74,42 @@ class NotificationManager:
         self.notifiers.append(notifier)
 
     def notify_all(self, message):
-        for notifier in self.notifiers:
-            notifier.notify(message)
+        if not self.notifiers:
+            return
+        self._ensure_worker()
+        try:
+            self._queue.put_nowait(message)
+        except queue.Full:
+            logger.warning("Notification queue is full; dropping a message")
+
+    def _ensure_worker(self):
+        with self._worker_lock:
+            if self._worker is None:
+                self._worker = threading.Thread(target=self._run_worker, name="notifier", daemon=True)
+                self._worker.start()
+
+    def _run_worker(self):
+        while True:
+            message = self._queue.get()
+            try:
+                for notifier in list(self.notifiers):
+                    try:
+                        notifier.notify(message)
+                    except Exception as error:  # never log the message text of the error
+                        logger.error("Notifier failed: %s", type(error).__name__)
+            finally:
+                self._queue.task_done()
+
+    def flush(self, timeout=FLUSH_TIMEOUT_SECONDS):
+        """Wait up to timeout seconds for queued messages to be sent. True if drained."""
+        deadline = time.monotonic() + timeout
+        with self._queue.all_tasks_done:
+            while self._queue.unfinished_tasks:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                self._queue.all_tasks_done.wait(remaining)
+        return True
 
 class SlackNotifier(Notifier):
     def __init__(self, slack_id):

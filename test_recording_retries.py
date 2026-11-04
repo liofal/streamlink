@@ -184,5 +184,30 @@ class TestStopDuringBackoff(unittest.TestCase):
                 rec.loop_check(config)
 
 
+class TestFlushOnExit(unittest.TestCase):
+    def run_loop(self, check_user_effect, validate_effect=None):
+        config = MagicMock(user="u", twitch_error_threshold=5, timer=240, oauth_token=None, game_list="", record_retries=5)
+        notifier = MagicMock()
+        with patch.object(rec, "TwitchManager") as tm, patch.object(rec, "StreamlinkManager"), \
+                patch.object(rec, "NotificationManager", return_value=notifier), \
+                patch.object(rec, "validate_auth_or_apply_policy", return_value=rec.RecorderState(), side_effect=validate_effect):
+            tm.return_value.check_user.side_effect = check_user_effect
+            try:
+                rec.loop_check(config)
+            except BaseException as error:
+                return notifier, error
+        return notifier, None
+
+    def test_flush_called_on_stop(self):
+        notifier, error = self.run_loop(streamlink_manager.StopRequested(15))
+        self.assertIsInstance(error, streamlink_manager.StopRequested)
+        notifier.flush.assert_called_once()
+
+    def test_flush_called_on_invalid_auth_exit(self):
+        notifier, error = self.run_loop(None, validate_effect=SystemExit(1))
+        self.assertIsInstance(error, SystemExit)
+        notifier.flush.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
