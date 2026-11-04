@@ -1,10 +1,24 @@
 import asyncio
 import logging
+import re
 from twitchAPI.twitch import Twitch
 from twitchAPI.helper import first
+from twitchAPI.type import TwitchAuthorizationException
 from enum import Enum, auto
 
 logger = logging.getLogger(__name__)
+
+_AUTH_STATUS_RE = re.compile(r"Authentication failed with code (\d{3})\b")
+
+
+def _twitch_error_summary(exc):
+    """Describe a Twitch error without its message, which can embed the client secret."""
+    summary = type(exc).__name__
+    if isinstance(exc, TwitchAuthorizationException):
+        match = _AUTH_STATUS_RE.match(str(exc))
+        if match:
+            summary += f" (HTTP {match.group(1)})"
+    return summary
 
 class StreamStatus(Enum):
     ONLINE = auto()
@@ -47,5 +61,5 @@ class TwitchManager:
 
             return StreamStatus.ONLINE, title
         except Exception as e:
-            logger.error(f"An unexpected error occurred while checking user status: {e}")
+            logger.error("An unexpected error occurred while checking user status: %s", _twitch_error_summary(e))
             return StreamStatus.ERROR, ""
