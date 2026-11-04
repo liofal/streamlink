@@ -228,7 +228,7 @@ class TestRecorderLoopStop(unittest.TestCase):
 
     def test_stop_during_recording_exits_loop_without_notifications(self):
         status = streamlink_recorder.StreamStatus
-        config = MagicMock(user="u", twitch_error_threshold=5, timer=240, oauth_token=None, game_list="")
+        config = MagicMock(user="u", twitch_error_threshold=5, timer=240, oauth_token=None, game_list="", record_retries=5)
         notifier = MagicMock()
         with patch.object(streamlink_recorder, "TwitchManager") as tm, \
                 patch.object(streamlink_recorder, "StreamlinkManager") as sm, \
@@ -241,7 +241,7 @@ class TestRecorderLoopStop(unittest.TestCase):
             with self.assertRaises(StopRequested):
                 streamlink_recorder.loop_check(config)
         messages = [c.args[0] for c in notifier.notify_all.call_args_list]
-        self.assertEqual(messages, ["Recording u ..."])
+        self.assertEqual(messages, [])  # "Recording" is sent from on_start, which never ran
         sleep.assert_not_called()
 
     def test_real_sigterm_while_sleeping_exits_loop(self):

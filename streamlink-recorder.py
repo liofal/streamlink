@@ -13,7 +13,7 @@ import sys
 from dataclasses import dataclass
 
 from twitch_manager import TwitchManager, StreamStatus
-from streamlink_manager import AuthValidationStatus, StopRequested, StreamlinkManager, install_signal_handlers, stop_requested
+from streamlink_manager import AuthValidationStatus, NoStreamsAvailable, StopRequested, StreamlinkManager, install_signal_handlers, stop_requested
 from notification_manager import NotificationManager
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TWITCH_ERROR_THRESHOLD = 5
 MAX_ERROR_BACKOFF_SECONDS = 600
+DEFAULT_RECORD_RETRIES = 5
+RETRY_BASE_SECONDS = 5
+RETRY_MAX_SECONDS = 60
+RECHECK_DELAY_SECONDS = 5
 
 
 class AppConfig:
@@ -39,6 +43,7 @@ class AppConfig:
         auth_invalid_policy,
         auth_validation_interval,
         twitch_error_threshold=DEFAULT_TWITCH_ERROR_THRESHOLD,
+        record_retries=DEFAULT_RECORD_RETRIES,
     ):
         self.timer = timer
         self.user = user
@@ -53,6 +58,7 @@ class AppConfig:
         self.auth_invalid_policy = auth_invalid_policy
         self.auth_validation_interval = auth_validation_interval
         self.twitch_error_threshold = twitch_error_threshold
+        self.record_retries = record_retries
 
 
 def first_config_value(cli_value, env_names, default=None):
@@ -96,6 +102,16 @@ def parse_twitch_error_threshold(parser, value):
         parser.error("Invalid integer for Twitch error threshold; set -twitcherrorthreshold/TWITCH_ERROR_NOTIFY_THRESHOLD to a whole number")
 
 
+def parse_record_retries(parser, value):
+    try:
+        retries = int(value)
+    except (TypeError, ValueError):
+        parser.error("Invalid integer for record retries; set -recordretries/RECORD_RETRIES to a whole number")
+    if retries < 0:
+        parser.error("Invalid record retries; set -recordretries/RECORD_RETRIES to 0 or more")
+    return retries
+
+
 def parse_auth_invalid_policy(parser, value):
     policy = str(value).lower()
     if policy not in ("exit", "notify"):
@@ -110,6 +126,9 @@ class RecorderState:
     invalid_auth_notified: bool = False
     consecutive_twitch_errors: int = 0
     twitch_errors_notified: bool = False
+    start_failures: int = 0
+    last_failure_key: object = None
+    recording_notified: bool = False
 
 
 def invalid_auth_message(config):
@@ -170,10 +189,31 @@ def handle_recording_error(config, streamlink_manager, notifier_manager, error, 
     if streamlink_manager.is_invalid_twitch_auth_error(error):
         return apply_invalid_auth_policy(config, notifier_manager, state)
 
-    message = f"Recording {config.user} failed: {type(error).__name__}. Recorder will continue checking."
+    # Only OSError carries a safe, OS-supplied description (errno/strerror); never use str(error).
+    detail = type(error).__name__
+    key = (type(error).__name__, None)
+    if isinstance(error, OSError) and error.errno is not None:
+        detail = f"{detail} (errno {error.errno}: {os.strerror(error.errno)})"
+        key = (type(error).__name__, error.errno)
+    message = f"Recording {config.user} failed: {detail}. Recorder will continue checking."
     logger.error(message)
-    notifier_manager.notify_all(message)
+    if key != state.last_failure_key:
+        notifier_manager.notify_all(message)
+        state.last_failure_key = key
     return state
+
+
+def retry_delay(attempt):
+    """Wait before start retry number `attempt` (0-based): 5, 10, 20, 40, then 60 seconds."""
+    return min(RETRY_BASE_SECONDS * 2 ** attempt, RETRY_MAX_SECONDS)
+
+
+def start_retry_sleep(config, state):
+    """Short backoff for the first record_retries consecutive start failures, then the normal timer."""
+    state.start_failures += 1
+    if state.start_failures <= config.record_retries:
+        return retry_delay(state.start_failures - 1)
+    return config.timer
 
 
 def error_backoff_seconds(timer, consecutive_errors):
@@ -270,18 +310,34 @@ def loop_check(config):
                 continue
             filename = build_recording_basename(config.user, title, datetime.datetime.now())
             recorded_filename = os.path.join("./download/", filename)
-            message = f"Recording {config.user} ..."
-            notifier_manager.notify_all(message)
-            logger.info(message)
+
+            def on_start():
+                if not state.recording_notified:  # once per online episode, not per retry
+                    notifier_manager.notify_all(f"Recording {config.user} ...")
+                    state.recording_notified = True
+                logger.info("Recording %s ...", config.user)
+
             try:
-                streamlink_manager.run_streamlink(config.user, recorded_filename)
+                streamlink_manager.run_streamlink(config.user, recorded_filename, on_start=on_start)
+            except NoStreamsAvailable:
+                logger.info("No playable stream for %s yet", config.user)
+                time.sleep(start_retry_sleep(config, state))
+                continue
             except Exception as error:
                 state = handle_recording_error(config, streamlink_manager, notifier_manager, error, state=state)
-                time.sleep(config.timer)
+                time.sleep(start_retry_sleep(config, state))
                 continue
+            state.start_failures = 0
+            state.last_failure_key = None
+            state.recording_notified = False
             message = f"Stream {config.user} is done. File saved as {filename}. Going back to checking.."
             logger.info(message)
             notifier_manager.notify_all(message)
+            time.sleep(RECHECK_DELAY_SECONDS)  # the stream may have only dropped; look again soon
+            continue
+        state.start_failures = 0
+        state.last_failure_key = None
+        state.recording_notified = False
         time.sleep(config.timer)
 
 def parse_arguments(argv=None):
@@ -298,6 +354,7 @@ def parse_arguments(argv=None):
     parser.add_argument("-oauthtoken", help="Your OAuth token for Twitch API")
     parser.add_argument("-authinvalidpolicy", help="What to do when Twitch playback auth token is invalid: exit or notify")
     parser.add_argument("-authvalidationinterval", help="Seconds between Twitch playback auth token validation checks")
+    parser.add_argument("-recordretries", help="Short-backoff retries when a live stream can't be started before falling back to the timer")
     parser.add_argument("-twitcherrorthreshold", help="Consecutive Twitch API failures before a notification is sent")
     args = parser.parse_args(argv)
 
@@ -339,6 +396,11 @@ def parse_arguments(argv=None):
         first_config_value(args.twitcherrorthreshold, ("TWITCH_ERROR_NOTIFY_THRESHOLD", "twitcherrorthreshold"), DEFAULT_TWITCH_ERROR_THRESHOLD),
     )
 
+    record_retries = parse_record_retries(
+        parser,
+        first_config_value(args.recordretries, ("RECORD_RETRIES", "recordretries"), DEFAULT_RECORD_RETRIES),
+    )
+
     return AppConfig(
         timer=timer,
         user=user,
@@ -353,6 +415,7 @@ def parse_arguments(argv=None):
         auth_invalid_policy=auth_invalid_policy,
         auth_validation_interval=auth_validation_interval,
         twitch_error_threshold=twitch_error_threshold,
+        record_retries=record_retries,
     )
 
 def main():

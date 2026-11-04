@@ -133,6 +133,7 @@ Existing lowercase variable names remain supported for compatibility. New deploy
 | Telegram chat ID | `telegramchatid` | `TELEGRAM_CHAT_ID` |
 | Comma-separated Twitch game IDs to record | `gamelist` | `GAME_LIST` |
 | Consecutive Twitch API failures before a notification is sent (default `5`) | `twitcherrorthreshold` | `TWITCH_ERROR_NOTIFY_THRESHOLD` |
+| Retries (5s, 10s, 20s, 40s, 60s backoff) when a live stream can't be started, before falling back to `timer` (default `5`, `0` disables) | `recordretries` | `RECORD_RETRIES` |
 
 ## Twitch credentials and playback auth
 
