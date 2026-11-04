@@ -1,5 +1,5 @@
 # Base image with Python
-FROM python:3.14.1-alpine3.21 as base
+FROM python:3.14.1-alpine3.21@sha256:fd8407cacb1028c803566276ae25eb7c2a00fbaa210a0a5670994f6866e29278 as base
 WORKDIR /app
 
 # Builder stage to install build dependencies and Python packages

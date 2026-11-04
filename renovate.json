@@ -1,7 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "customManagers:githubActionsVersions"
   ],
   "minimumReleaseAge": "3 days",
   "platformAutomerge": false,
@@ -61,11 +62,6 @@
   "dockerfile": {
     "managerFilePatterns": [
       "/Dockerfile/"
-    ]
-  },
-  "github-actions": {
-    "managerFilePatterns": [
-      "/.github/workflows/*.yml/"
     ]
   },
   "labels": [

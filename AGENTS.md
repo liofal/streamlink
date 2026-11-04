@@ -19,12 +19,15 @@ A long-running Twitch stream recorder. It polls the Twitch Helix API (`twitchAPI
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt pytest
+pip install -r requirements-dev.txt pytest
 python -m pytest -q
 ```
 
 - **The full test suite must pass before any PR.** CI (`.github/workflows/ci.yml`) runs it on every PR and before every release.
 - Run the suite yourself and include the result in the PR.
+- `requirements.txt` is the runtime set baked into the image. Dev tools (`pre-commit`, `commitizen`) go in `requirements-dev.txt`, never in `requirements.txt`.
+- CI also runs `pip-audit -r requirements.txt` (blocking on PRs) and a report-only Trivy scan of the image. If a CVE has no fixed version, add `--ignore-vuln <ID>` in `ci.yml` with a comment linking a tracking issue; otherwise bump the pin.
+- Workflows pin actions, reusable workflows and the base image by SHA/digest; Renovate updates them. Keep new ones pinned the same way.
 - A bug fix comes with a test that fails without the fix. Say so in the PR.
 - The entry script has a hyphen in its name. Tests import it with `importlib.util.spec_from_file_location` (see `test_recorder_auth_validation.py`); reuse that loader.
 - Mock `streamlink` and `twitchAPI` at their boundaries. Tests never hit the network. For library behavior, read the installed source in the venv rather than guessing.
