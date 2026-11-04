@@ -1,6 +1,7 @@
 import logging
 import os
 import streamlink
+from streamlink.options import Options
 import shutil
 import signal
 from contextlib import contextmanager
@@ -126,8 +127,7 @@ class StreamlinkManager:
     def run_streamlink(self, user, recorded_filename, on_start=None):
         """Record until the stream ends. on_start() is called once the stream is open."""
         session = self.create_session()
-        self.configure_session_auth(session)
-        streams = session.streams(f"twitch.tv/{user}")
+        streams = session.streams(f"twitch.tv/{user}", options=self.plugin_options())
         if not streams:
             raise NoStreamsAvailable
         quality = select_quality(self.config.quality, streams)
@@ -172,10 +172,17 @@ class StreamlinkManager:
         # the library ignores them. Start retries are handled by the recorder loop.
         return streamlink.Streamlink()
 
-    def configure_session_auth(self, session, oauth_token=None):
-        token = self.config.oauth_token if oauth_token is None else oauth_token
-        if token:
-            session.set_option("http-headers", f"Authorization=OAuth {token}")
+    def plugin_options(self):
+        """Options for the Twitch plugin, or None without a token.
+
+        The token goes in the plugin's api-header option, so it is only sent on Twitch
+        API (GQL) requests. A session-wide http-headers option would also send it to
+        the HLS/CDN hosts.
+        """
+        token = self.config.oauth_token
+        if not token:
+            return None
+        return Options({"api-header": [("Authorization", f"OAuth {token}")]})
 
     def is_invalid_twitch_auth_error(self, error):
         message = str(error)
@@ -190,9 +197,8 @@ class StreamlinkManager:
             return AuthValidationStatus.NOT_CONFIGURED
 
         session = self.create_session()
-        self.configure_session_auth(session)
         try:
-            session.streams(f"twitch.tv/{user}")
+            session.streams(f"twitch.tv/{user}", options=self.plugin_options())
             return AuthValidationStatus.VALID_OR_NOT_REJECTED
         except Exception as error:
             if self.is_invalid_twitch_auth_error(error):

@@ -23,6 +23,11 @@ def _twitch_error_summary(exc):
             summary += f" (HTTP {match.group(1)})"
     return summary
 
+def parse_game_list(value):
+    """Split a comma-separated game id list, stripping blanks and dropping empty entries."""
+    return [game.strip() for game in (value or "").split(",") if game.strip()]
+
+
 class StreamStatus(Enum):
     ONLINE = auto()
     UNDESIRED_GAME = auto()
@@ -58,6 +63,8 @@ class TwitchManager:
 
     def check_user(self, user):
         try:
+            # Known limitation: twitchAPI waits out a Helix 429 and then returns an empty
+            # result without exposing the status, so a rate-limited poll reads as OFFLINE.
             user_info = self.get_from_twitch('get_users', logins=user)
             if not user_info:
                 return StreamStatus.OFFLINE, ""
@@ -67,7 +74,8 @@ class TwitchManager:
                 return StreamStatus.OFFLINE, ""
 
             game_id, title = stream_info.game_id, stream_info.title
-            if self.config.game_list and game_id not in self.config.game_list.split(","):
+            games = parse_game_list(self.config.game_list)
+            if games and game_id not in games:
                 return StreamStatus.UNDESIRED_GAME, title
 
             return StreamStatus.ONLINE, title
