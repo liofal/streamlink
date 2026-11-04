@@ -3,6 +3,8 @@
   "extends": [
     "config:recommended"
   ],
+  "minimumReleaseAge": "3 days",
+  "platformAutomerge": false,
   "vulnerabilityAlerts": {
     "enabled": true
   },
@@ -37,6 +39,18 @@
         "/^husky/",
         "/^semantic-release/"
       ]
+    },
+    {
+      "description": "Runtime/auth-critical dependencies: never automerge, review manually",
+      "matchPackageNames": [
+        "streamlink",
+        "twitchAPI",
+        "requests",
+        "oauthlib",
+        "requests-oauthlib",
+        "aiohttp"
+      ],
+      "automerge": false
     }
   ],
   "pip_requirements": {
