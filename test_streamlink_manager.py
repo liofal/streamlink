@@ -1,6 +1,7 @@
 
 import unittest
 from unittest.mock import MagicMock, patch
+import streamlink_manager
 from streamlink_manager import AuthValidationStatus, StreamlinkManager
 
 class TestStreamlinkManager(unittest.TestCase):
@@ -114,6 +115,48 @@ class TestStreamlinkManager(unittest.TestCase):
         status = self.manager.validate_oauth_token("testuser")
 
         self.assertEqual(status, AuthValidationStatus.UNKNOWN)
+
+
+
+class TestSelectQuality(unittest.TestCase):
+    def sel(self, prefs, keys):
+        return streamlink_manager.select_quality(prefs, {k: object() for k in keys})
+
+    def test_comma_list_picks_first_available(self):
+        self.assertEqual(self.sel("720p60,720p,best", ["720p", "best"]), "720p")
+
+    def test_comma_list_first_entry_present(self):
+        self.assertEqual(self.sel("720p60,720p,best", ["720p60", "720p", "best"]), "720p60")
+
+    def test_whitespace_and_empty_entries(self):
+        self.assertEqual(self.sel(" 720p60 , ,720p ", ["720p"]), "720p")
+
+    def test_missing_quality_falls_back_to_best(self):
+        self.assertEqual(self.sel("1080p,480p", ["best", "720p"]), "best")
+
+    def test_single_quality_present(self):
+        self.assertEqual(self.sel("720p", ["720p", "best"]), "720p")
+
+    def test_single_quality_absent(self):
+        self.assertEqual(self.sel("480p", ["720p", "best"]), "best")
+
+    @patch('streamlink_manager.streamlink.Streamlink')
+    def test_run_streamlink_uses_comma_preference(self, mock_streamlink_cls):
+        config = MagicMock()
+        config.oauth_token = "t"
+        config.quality = "720p60,720p,best"
+        wanted, other = MagicMock(), MagicMock()
+        for s in (wanted, other):
+            s.url = "http://example.com/playlist.m3u8"
+            fd = MagicMock()
+            fd.read.side_effect = [b'data', b'']
+            s.open.return_value = fd
+        mock_streamlink_cls.return_value.streams.return_value = {"720p": wanted, "best": other}
+        with patch('builtins.open', unittest.mock.mock_open()):
+            StreamlinkManager(config).run_streamlink("u", "f")
+        wanted.open.assert_called_once()
+        other.open.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()
