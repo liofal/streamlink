@@ -290,7 +290,13 @@ def loop_check(config):
     twitch_manager = TwitchManager(config)
     streamlink_manager = StreamlinkManager(config)
     notifier_manager = NotificationManager(config)
+    try:
+        _run_loop(config, twitch_manager, streamlink_manager, notifier_manager)
+    finally:
+        notifier_manager.flush()  # best-effort, bounded: send the last messages before exiting
 
+
+def _run_loop(config, twitch_manager, streamlink_manager, notifier_manager):
     state = validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, force_notify=True)
 
     while True:

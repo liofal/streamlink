@@ -137,11 +137,11 @@ class StreamlinkManager:
         final_filename = f"{recorded_filename}.{extension}"
 
         fd = stream.open()
-        if on_start is not None:
-            on_start()
         complete = False
         try:
             try:
+                if on_start is not None:
+                    on_start()
                 with open(temp_filename, 'wb') as f:
                     while True:
                         data = fd.read(1024)

@@ -181,6 +181,34 @@ class TestSelectQuality(unittest.TestCase):
         wanted.open.assert_called_once()
         other.open.assert_not_called()
 
+    @patch('streamlink_manager.streamlink.Streamlink')
+    def test_stop_in_on_start_closes_fd_and_leaves_no_file(self, mock_streamlink_cls):
+        stream = MagicMock(url="http://example.com/playlist.m3u8")
+        fd = stream.open.return_value
+        mock_streamlink_cls.return_value.streams.return_value = {"best": stream}
+
+        def on_start():
+            raise streamlink_manager.StopRequested(15)
+
+        with patch('builtins.open', unittest.mock.mock_open()) as mock_file, \
+                patch('streamlink_manager.shutil.move') as move, patch('streamlink_manager.os.remove') as remove:
+            with self.assertRaises(streamlink_manager.StopRequested):
+                StreamlinkManager(MagicMock(quality="best", oauth_token=None)).run_streamlink("u", "f", on_start=on_start)
+        fd.close.assert_called_once()
+        mock_file.assert_not_called()
+        move.assert_not_called()
+        remove.assert_not_called()
+
+    @patch('streamlink_manager.streamlink.Streamlink')
+    def test_on_start_error_closes_fd(self, mock_streamlink_cls):
+        stream = MagicMock(url="http://example.com/playlist.m3u8")
+        fd = stream.open.return_value
+        mock_streamlink_cls.return_value.streams.return_value = {"best": stream}
+        with patch('builtins.open', unittest.mock.mock_open()):
+            with self.assertRaises(ValueError):
+                StreamlinkManager(MagicMock(quality="best", oauth_token=None)).run_streamlink("u", "f", on_start=MagicMock(side_effect=ValueError))
+        fd.close.assert_called_once()
+
 
 if __name__ == '__main__':
     unittest.main()
