@@ -16,6 +16,19 @@ class AuthValidationStatus(Enum):
     UNKNOWN = auto()
 
 
+def select_quality(preferences, streams):
+    """Return the first preferred quality present in streams, else "best".
+
+    preferences is a comma-separated fallback list such as "720p60,720p,best".
+    """
+    if isinstance(preferences, str):
+        for entry in preferences.split(","):
+            entry = entry.strip()
+            if entry and entry in streams:
+                return entry
+    return "best"
+
+
 class StreamlinkManager:
     def __init__(self, config):
         self.config = config
@@ -51,10 +64,8 @@ class StreamlinkManager:
     def run_streamlink(self, user, recorded_filename):
         session = self.create_session()
         self.configure_session_auth(session)
-        quality = self.config.quality
         streams = session.streams(f"twitch.tv/{user}")
-        if quality not in streams:
-            quality = "best"
+        quality = select_quality(self.config.quality, streams)
         stream = streams[quality]
         extension = self.get_stream_extension(stream)
         temp_filename = f"{recorded_filename}.part"
