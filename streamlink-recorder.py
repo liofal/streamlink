@@ -7,6 +7,7 @@ import argparse
 import os
 import re
 import time
+import unicodedata
 import logging
 import sys
 from dataclasses import dataclass
@@ -199,6 +200,52 @@ def track_twitch_status(config, notifier_manager, stream_status, state):
     return state
 
 
+NAME_MAX_BYTES = 255
+# run_streamlink appends ".part" (5 bytes) or ".<ext>" (ts/mp4/m3u8-family); keep spare room.
+SUFFIX_RESERVE = 16
+MAX_USER_CHARS = 25  # Twitch login limit
+_RESERVED_CHARS = re.compile(r'[<>:"/\\|?*]')
+
+
+def _truncate_utf8(text, max_bytes):
+    """Cut text to at most max_bytes UTF-8 bytes without splitting a character."""
+    if max_bytes <= 0:
+        return ""
+    return text.encode("utf-8")[:max_bytes].decode("utf-8", "ignore")
+
+
+def _sanitize_component(text):
+    """Make text safe as part of a filename.
+
+    Order matters: reserved path characters are replaced with "_" first, then
+    anything outside [\\w\\s._-] is removed, then control/format characters are
+    dropped and whitespace runs (incl. newlines) collapse to one space.
+    """
+    text = unicodedata.normalize("NFC", text or "")
+    text = _RESERVED_CHARS.sub("_", text)
+    text = re.sub(r"[^\w\s._-]", "", text)
+    text = "".join(c for c in text if c.isspace() or not unicodedata.category(c).startswith("C"))
+    text = re.sub(r"\s+", " ", text)
+    return text.strip(" .")
+
+
+def _sanitize_user(user):
+    """Reduce user to the Twitch login charset [A-Za-z0-9_], max 25 chars, else "unknown"."""
+    text = re.sub(r"[^A-Za-z0-9_]+", "_", user or "")
+    text = re.sub(r"_+", "_", text).strip("_")[:MAX_USER_CHARS].strip("_")
+    return text or "unknown"
+
+
+def build_recording_basename(user, title, now):
+    """Return "<user> - <YYYY-mm-dd HH-MM-SS> - <title>", capped for the filesystem."""
+    budget = NAME_MAX_BYTES - SUFFIX_RESERVE
+    safe_user = _sanitize_user(user)
+    prefix = f"{safe_user} - {now.strftime('%Y-%m-%d %H-%M-%S')}"
+    title_budget = budget - len(prefix.encode("utf-8")) - len(" - ")
+    safe_title = _truncate_utf8(_sanitize_component(title), title_budget).strip(" .")
+    return f"{prefix} - {safe_title}" if safe_title else prefix
+
+
 def loop_check(config):
     twitch_manager = TwitchManager(config)
     streamlink_manager = StreamlinkManager(config)
@@ -219,9 +266,7 @@ def loop_check(config):
                 logger.error("Skipping recording for %s because Twitch playback auth token is invalid", config.user)
                 time.sleep(config.timer)
                 continue
-            safe_title = re.sub(r"[^\w\s._-]|[<>:\"/\\|?*]", "", title)
-            safe_title = os.path.basename(safe_title)
-            filename = f"{config.user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {safe_title}"
+            filename = build_recording_basename(config.user, title, datetime.datetime.now())
             recorded_filename = os.path.join("./download/", filename)
             message = f"Recording {config.user} ..."
             notifier_manager.notify_all(message)
