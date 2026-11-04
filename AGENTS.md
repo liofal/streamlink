@@ -23,7 +23,7 @@ pip install -r requirements.txt pytest
 python -m pytest -q
 ```
 
-- **The full test suite must pass before any PR.** CI does not run the tests yet (#162), so you are the gate.
+- **The full test suite must pass before any PR.** CI (`.github/workflows/ci.yml`) runs it on every PR and before every release.
 - Run the suite yourself and include the result in the PR.
 - A bug fix comes with a test that fails without the fix. Say so in the PR.
 - The entry script has a hyphen in its name. Tests import it with `importlib.util.spec_from_file_location` (see `test_recorder_auth_validation.py`); reuse that loader.
@@ -45,7 +45,7 @@ python -m pytest -q
   - `feat:` → minor release
   - `chore(deps):` → patch release
   - `docs:`, `test:`, other `chore:` → no release
-- **A releasing merge (`fix:`, `feat:`, `chore(deps):`) ships immediately.** The release publishes the image (Docker Hub, ghcr) and the Helm chart. Running pods pick up the new `latest` image whenever they restart (`pullPolicy: Always`) or the chart is upgraded. Branch protection and a CI test gate don't exist yet (#162), so treat every releasing merge as a production deploy.
+- **A releasing merge (`fix:`, `feat:`, `chore(deps):`) ships immediately.** The release publishes the image (Docker Hub, ghcr) and the Helm chart. Running pods pick up the new `latest` image whenever they restart (`pullPolicy: Always`) or the chart is upgraded. The release is gated on CI (tests, import smoke, docker build), but main has no branch protection yet, so treat every releasing merge as a production deploy.
 - Branches: `fix|feat|chore|docs/<issue>-<slug>`. PRs reference `Closes #<issue>`.
 - Never push to `main` directly, and never force-push.
 

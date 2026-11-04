@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cancel superseded runs of the same PR only. Push/release (workflow_call) and
+# manual runs get a per-run group so they never queue behind or cancel each other.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || format('ci-run-{0}', github.run_id) }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python (matches Dockerfile base image)
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt pytest
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Import smoke test of the entry script
+        run: |
+          python - <<'EOF'
+          import importlib.util
+
+          spec = importlib.util.spec_from_file_location("streamlink_recorder", "streamlink-recorder.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          for name in ("main", "loop_check", "AppConfig"):
+              assert hasattr(module, name), f"streamlink-recorder.py is missing {name}"
+          print("import smoke test OK")
+          EOF
+
+      - name: CLI smoke test
+        run: python streamlink-recorder.py --help
+
+  docker-build:
+    name: docker-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build image (no push)
+        run: docker build --pull -t streamlink-recorder:ci .
+
+      - name: Image smoke test
+        run: docker run --rm streamlink-recorder:ci --help
