@@ -4,12 +4,29 @@ import streamlink
 from streamlink.options import Options
 import shutil
 import signal
+import time
 from contextlib import contextmanager
 from enum import Enum, auto
 
 logger = logging.getLogger(__name__)
 
 INCOMPLETE_SUFFIX = ".incomplete"
+
+# Liveness heartbeat: the Helm chart's exec probe restarts the pod when this file
+# is older than its threshold (default max(timer, 600) + 300 seconds). The loop
+# beats every iteration and the recording beats every HEARTBEAT_INTERVAL_SECONDS.
+HEARTBEAT_FILE = "/tmp/streamlink-recorder.heartbeat"
+HEARTBEAT_INTERVAL_SECONDS = 30
+
+
+def beat():
+    """Touch the heartbeat file. Never raises: a missing /tmp must not stop the recorder."""
+    try:
+        with open(HEARTBEAT_FILE, "a"):
+            pass
+        os.utime(HEARTBEAT_FILE)
+    except OSError:
+        pass
 
 
 class NoStreamsAvailable(Exception):
@@ -143,11 +160,15 @@ class StreamlinkManager:
                 if on_start is not None:
                     on_start()
                 with open(temp_filename, 'wb') as f:
+                    last_beat = time.monotonic()
                     while True:
                         data = fd.read(1024)
                         if not data:
                             break
                         f.write(data)
+                        if time.monotonic() - last_beat >= HEARTBEAT_INTERVAL_SECONDS:
+                            beat()
+                            last_beat = time.monotonic()
                 complete = True
             except StopRequested:
                 # Shutdown: the data written so far is a valid recording.
