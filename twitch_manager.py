@@ -8,6 +8,9 @@ from enum import Enum, auto
 
 logger = logging.getLogger(__name__)
 
+# Upper bound for one Twitch call (client creation included), so a stuck call cannot hang the recorder.
+TWITCH_CALL_TIMEOUT = 30
+
 _AUTH_STATUS_RE = re.compile(r"Authentication failed with code (\d{3})\b")
 
 
@@ -34,13 +37,21 @@ class TwitchManager:
     async def app_refresh(self, token: str):
         logger.info("Twitch app token refreshed")
 
-    async def get_from_twitch_async(self, operation, **kwargs):
+    async def _call_twitch(self, operation, **kwargs):
         if self.twitch is None:
             self.twitch = await Twitch(self.config.client_id, self.config.client_secret)
             self.twitch.app_auth_refresh_callback = self.app_refresh
 
-        result = await first(getattr(self.twitch, operation)(**kwargs))
-        return result
+        return await first(getattr(self.twitch, operation)(**kwargs))
+
+    async def get_from_twitch_async(self, operation, **kwargs):
+        try:
+            return await asyncio.wait_for(self._call_twitch(operation, **kwargs), TWITCH_CALL_TIMEOUT)
+        except BaseException:
+            # twitchAPI leaves its app-token refresh lock set when a refresh fails, which would
+            # hang every later call on this instance, so always rebuild the client after a failure.
+            self.twitch = None
+            raise
 
     def get_from_twitch(self, operation, **kwargs):
         return asyncio.run(self.get_from_twitch_async(operation, **kwargs))

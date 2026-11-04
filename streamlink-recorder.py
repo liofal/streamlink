@@ -18,6 +18,10 @@ from notification_manager import NotificationManager
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+DEFAULT_TWITCH_ERROR_THRESHOLD = 5
+MAX_ERROR_BACKOFF_SECONDS = 600
+
+
 class AppConfig:
     def __init__(
         self,
@@ -33,6 +37,7 @@ class AppConfig:
         oauth_token,
         auth_invalid_policy,
         auth_validation_interval,
+        twitch_error_threshold=DEFAULT_TWITCH_ERROR_THRESHOLD,
     ):
         self.timer = timer
         self.user = user
@@ -46,6 +51,7 @@ class AppConfig:
         self.oauth_token = oauth_token
         self.auth_invalid_policy = auth_invalid_policy
         self.auth_validation_interval = auth_validation_interval
+        self.twitch_error_threshold = twitch_error_threshold
 
 
 def first_config_value(cli_value, env_names, default=None):
@@ -82,6 +88,13 @@ def parse_auth_validation_interval(parser, value):
         parser.error("Invalid integer for auth validation interval; set -authvalidationinterval/TWITCH_AUTH_VALIDATION_INTERVAL to a whole number")
 
 
+def parse_twitch_error_threshold(parser, value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        parser.error("Invalid integer for Twitch error threshold; set -twitcherrorthreshold/TWITCH_ERROR_NOTIFY_THRESHOLD to a whole number")
+
+
 def parse_auth_invalid_policy(parser, value):
     policy = str(value).lower()
     if policy not in ("exit", "notify"):
@@ -94,6 +107,8 @@ class RecorderState:
     auth_status: AuthValidationStatus = AuthValidationStatus.NOT_CONFIGURED
     last_auth_validation_time: float = 0
     invalid_auth_notified: bool = False
+    consecutive_twitch_errors: int = 0
+    twitch_errors_notified: bool = False
 
 
 def invalid_auth_message(config):
@@ -160,6 +175,30 @@ def handle_recording_error(config, streamlink_manager, notifier_manager, error, 
     return state
 
 
+def error_backoff_seconds(timer, consecutive_errors):
+    """Sleep time after a Twitch ERROR: the timer for the first one, doubling up to a cap."""
+    cap = max(timer, MAX_ERROR_BACKOFF_SECONDS)
+    return min(timer * 2 ** max(consecutive_errors - 1, 0), cap)
+
+
+def track_twitch_status(config, notifier_manager, stream_status, state):
+    if stream_status == StreamStatus.ERROR:
+        state.consecutive_twitch_errors += 1
+        if state.consecutive_twitch_errors >= config.twitch_error_threshold and not state.twitch_errors_notified:
+            notifier_manager.notify_all(
+                f"Twitch API checks for {config.user} have failed {state.consecutive_twitch_errors} times in a row. "
+                "Recordings may be missed. Check the Twitch client id/secret and Twitch status."
+            )
+            state.twitch_errors_notified = True
+        return state
+
+    if state.twitch_errors_notified:
+        notifier_manager.notify_all(f"Twitch API checks for {config.user} recovered. Stream checks are working again.")
+    state.consecutive_twitch_errors = 0
+    state.twitch_errors_notified = False
+    return state
+
+
 def loop_check(config):
     twitch_manager = TwitchManager(config)
     streamlink_manager = StreamlinkManager(config)
@@ -171,6 +210,10 @@ def loop_check(config):
         if should_validate_auth(config, state):
             state = validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, state=state)
         stream_status, title = twitch_manager.check_user(config.user)
+        state = track_twitch_status(config, notifier_manager, stream_status, state)
+        if stream_status == StreamStatus.ERROR:
+            time.sleep(error_backoff_seconds(config.timer, state.consecutive_twitch_errors))
+            continue
         if stream_status == StreamStatus.ONLINE:
             if not should_attempt_recording(config, state):
                 logger.error("Skipping recording for %s because Twitch playback auth token is invalid", config.user)
@@ -208,6 +251,7 @@ def parse_arguments(argv=None):
     parser.add_argument("-oauthtoken", help="Your OAuth token for Twitch API")
     parser.add_argument("-authinvalidpolicy", help="What to do when Twitch playback auth token is invalid: exit or notify")
     parser.add_argument("-authvalidationinterval", help="Seconds between Twitch playback auth token validation checks")
+    parser.add_argument("-twitcherrorthreshold", help="Consecutive Twitch API failures before a notification is sent")
     args = parser.parse_args(argv)
 
     user = require_config(
@@ -243,6 +287,11 @@ def parse_arguments(argv=None):
         first_config_value(args.authvalidationinterval, ("TWITCH_AUTH_VALIDATION_INTERVAL", "authvalidationinterval"), 3600),
     )
 
+    twitch_error_threshold = parse_twitch_error_threshold(
+        parser,
+        first_config_value(args.twitcherrorthreshold, ("TWITCH_ERROR_NOTIFY_THRESHOLD", "twitcherrorthreshold"), DEFAULT_TWITCH_ERROR_THRESHOLD),
+    )
+
     return AppConfig(
         timer=timer,
         user=user,
@@ -256,6 +305,7 @@ def parse_arguments(argv=None):
         oauth_token=first_config_value(args.oauthtoken, ("TWITCH_AUTH_TOKEN", "TWITCH_OAUTH_TOKEN", "oauthtoken")),
         auth_invalid_policy=auth_invalid_policy,
         auth_validation_interval=auth_validation_interval,
+        twitch_error_threshold=twitch_error_threshold,
     )
 
 def main():

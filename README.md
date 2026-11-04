@@ -132,6 +132,7 @@ Existing lowercase variable names remain supported for compatibility. New deploy
 | Telegram bot token | `telegrambottoken` | `TELEGRAM_BOT_TOKEN` |
 | Telegram chat ID | `telegramchatid` | `TELEGRAM_CHAT_ID` |
 | Comma-separated Twitch game IDs to record | `gamelist` | `GAME_LIST` |
+| Consecutive Twitch API failures before a notification is sent (default `5`) | `twitcherrorthreshold` | `TWITCH_ERROR_NOTIFY_THRESHOLD` |
 
 ## Twitch credentials and playback auth
 
