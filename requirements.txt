@@ -1,4 +1,4 @@
-oauthlib==4.0.0
+oauthlib==4.0.1
 requests==2.34.2
 requests-oauthlib==2.0.0
 streamlink==8.6.3
