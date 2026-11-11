@@ -25,8 +25,65 @@ secretName: "streamlink-secrets" # Default name for the shared secret
 
 ffmpeg:
   sleeptime: "<sleeptime_value>"
+  # Must be the mounted download directory (/app/download): the root filesystem
+  # is read-only, so any other path makes the sidecar fail at startup.
   workdir: "<workdir_value>"
 
 nfs:
   server: <server_ip_here>
   path: /<volume>/<folder>
+
+# Both containers run as this non-root user/group. It must own (or be able to
+# write) the NFS folder of each streamer. Before deploying:
+#   - on the NAS: chown -R 1027:100 /<volume>/<folder>/<streamer.name>
+#   - for a new streamer, pre-create /<volume>/<folder>/<streamer.name> owned by
+#     1027:100. Otherwise kubelet creates the subPath folder as root and the
+#     recorder cannot write to it.
+# fsGroup only adds a supplemental group; Kubernetes does not chown NFS volumes.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1027
+  runAsGroup: 100
+  fsGroup: 100
+
+# Container-level hardening, applied to the recorder and the ffmpeg sidecar.
+# /tmp is an emptyDir in each container; all recordings go to the NFS volume.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+    - ALL
+
+# Requests and limits per container. No CPU limits: throttling a recorder can make
+# the stream time out. The recorder uses about 100-150Mi while recording (Python,
+# streamlink's 16Mi ring buffer, HLS segments). ffmpeg remuxes (-c copy) large .ts
+# files and was OOM-killed at 256M (#40); an OOM leaves the file as .ts.failed.
+resources:
+  streamlink:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  ffmpeg:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+# Exec probe on the recorder's heartbeat file (/tmp/streamlink-recorder.heartbeat).
+# A hung recorder is restarted; long recordings and offline sleeps keep beating.
+# maxHeartbeatAgeSeconds empty = max(streamer.timer, 600) + 300 seconds.
+livenessProbe:
+  enabled: true
+  maxHeartbeatAgeSeconds: ""
+  initialDelaySeconds: 60
+  periodSeconds: 60
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+# Size cap for each container's /tmp emptyDir (streamlink cache and heartbeat only).
+# Exceeding it evicts the pod.
+tmpSizeLimit: 64Mi

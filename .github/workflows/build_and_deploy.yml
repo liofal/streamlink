@@ -5,10 +5,19 @@ on:
     branches: [ main ] # Or your default branch
 
 jobs:
-  # Job 1: Run the reusable workflow for semantic-release
+  # Job 0: Tests, import smoke and docker build (same definition as PR CI)
+  ci:
+    name: Tests
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  # Job 1: Run the reusable workflow for semantic-release (only after CI passes)
   release:
     name: Create Release
-    uses: liofal/actions/.github/workflows/semantic_release.yml@main
+    needs: ci
+    # Pinned to a liofal/actions commit; Renovate opens digest PRs when main moves.
+    uses: liofal/actions/.github/workflows/semantic_release.yml@135c6dd68565d7c447d72dfc77188c891509e4c8 # main
     with:
       # Ensure all required plugins are installed by the reusable workflow
       semantic-release-plugins: >-
@@ -21,32 +30,41 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
-    secrets: inherit
+    # No secrets passed: semantic_release.yml only uses secrets.GITHUB_TOKEN,
+    # which a called workflow always receives.
 
   # Job 2: Run the reusable workflow for build and deploy
   build_deploy:
     name: Build and Deploy Docker Image
     needs: release
     if: needs.release.outputs.published == '1'
-    uses: liofal/actions/.github/workflows/build_and_deploy.yml@main
+    # Pinned to a liofal/actions commit; Renovate opens digest PRs when main moves.
+    uses: liofal/actions/.github/workflows/build_and_deploy.yml@135c6dd68565d7c447d72dfc77188c891509e4c8 # main
     permissions:
       contents: read
       packages: write
     with:
       tag: ${{ needs.release.outputs.version }}
+    # Kept as inherit: build_and_deploy.yml uses DOCKER_USERNAME/DOCKER_TOKEN but
+    # does not declare them under on.workflow_call.secrets, so they cannot be
+    # passed by name. Fix belongs in liofal/actions; the SHA pin above limits
+    # the secrets to reviewed code meanwhile.
     secrets: inherit
 
   # Job 3: Run the reusable workflow for Helm publish (if release occurred AND chart exists)
   publish_helm_chart:
     name: Publish Helm Chart
-    needs: release
+    # Never publish a chart for an image that failed to build
+    needs: [release, build_deploy]
     # Condition: Check if release happened AND the chart file exists in *this* repo
     if: needs.release.outputs.published == '1'
-    uses: liofal/actions/.github/workflows/publish_helm.yml@main
+    # Pinned to a liofal/actions commit; Renovate opens digest PRs when main moves.
+    uses: liofal/actions/.github/workflows/publish_helm.yml@135c6dd68565d7c447d72dfc77188c891509e4c8 # main
     permissions:
       contents: read   # publish_helm needs read access for checkout
       packages: write  # publish_helm needs write access to push package and set visibility
     with:
       tag: ${{ needs.release.outputs.version }}
       # chart_path: 'kube/charts' # Optional: Only needed if chart is not at the default path
-    secrets: inherit # Pass GITHUB_TOKEN down
+    # No secrets passed: publish_helm.yml only uses secrets.GITHUB_TOKEN, which a
+    # called workflow always receives.

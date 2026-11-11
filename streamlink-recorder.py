@@ -7,16 +7,27 @@ import argparse
 import os
 import re
 import time
+import unicodedata
 import logging
 import sys
 from dataclasses import dataclass
 
 from twitch_manager import TwitchManager, StreamStatus
-from streamlink_manager import AuthValidationStatus, StreamlinkManager
+from streamlink_manager import AuthValidationStatus, NoStreamsAvailable, StopRequested, StreamlinkManager, install_signal_handlers, stop_requested, beat
 from notification_manager import NotificationManager
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Sleeps between heartbeats must stay under the Helm liveness threshold,
+# max(timer, MAX_ERROR_BACKOFF_SECONDS) + 300 (kube/charts/templates/deployment.yaml).
+DEFAULT_TWITCH_ERROR_THRESHOLD = 5
+MAX_ERROR_BACKOFF_SECONDS = 600
+DEFAULT_RECORD_RETRIES = 5
+RETRY_BASE_SECONDS = 5
+RETRY_MAX_SECONDS = 60
+RECHECK_DELAY_SECONDS = 5
+
 
 class AppConfig:
     def __init__(
@@ -33,6 +44,8 @@ class AppConfig:
         oauth_token,
         auth_invalid_policy,
         auth_validation_interval,
+        twitch_error_threshold=DEFAULT_TWITCH_ERROR_THRESHOLD,
+        record_retries=DEFAULT_RECORD_RETRIES,
     ):
         self.timer = timer
         self.user = user
@@ -46,6 +59,8 @@ class AppConfig:
         self.oauth_token = oauth_token
         self.auth_invalid_policy = auth_invalid_policy
         self.auth_validation_interval = auth_validation_interval
+        self.twitch_error_threshold = twitch_error_threshold
+        self.record_retries = record_retries
 
 
 def first_config_value(cli_value, env_names, default=None):
@@ -68,18 +83,50 @@ def require_config(parser, value, field_name, cli_arg, env_names):
     parser.error(f"Missing required configuration: {field_name} (set {cli_arg}, {env_hint})")
 
 
+MIN_TIMER_SECONDS = 1
+RECOMMENDED_TIMER_SECONDS = 15
+
+
 def parse_timer_value(parser, value):
     try:
-        return int(value)
+        timer = int(value)
     except (TypeError, ValueError):
         parser.error("Invalid integer for timer; set -timer/TIMER to a whole number")
+    if timer < MIN_TIMER_SECONDS:
+        parser.error("Invalid timer; set -timer/TIMER to 1 or more seconds")
+    if timer < RECOMMENDED_TIMER_SECONDS:
+        logger.warning("Timer of %s seconds is below the recommended %s and may hit Twitch rate limits", timer, RECOMMENDED_TIMER_SECONDS)
+    return timer
 
 
 def parse_auth_validation_interval(parser, value):
     try:
-        return int(value)
+        interval = int(value)
     except (TypeError, ValueError):
         parser.error("Invalid integer for auth validation interval; set -authvalidationinterval/TWITCH_AUTH_VALIDATION_INTERVAL to a whole number")
+    if interval < 1:
+        parser.error("Invalid auth validation interval; set -authvalidationinterval/TWITCH_AUTH_VALIDATION_INTERVAL to 1 or more seconds")
+    return interval
+
+
+def parse_twitch_error_threshold(parser, value):
+    try:
+        threshold = int(value)
+    except (TypeError, ValueError):
+        parser.error("Invalid integer for Twitch error threshold; set -twitcherrorthreshold/TWITCH_ERROR_NOTIFY_THRESHOLD to a whole number")
+    if threshold < 1:
+        parser.error("Invalid Twitch error threshold; set -twitcherrorthreshold/TWITCH_ERROR_NOTIFY_THRESHOLD to 1 or more")
+    return threshold
+
+
+def parse_record_retries(parser, value):
+    try:
+        retries = int(value)
+    except (TypeError, ValueError):
+        parser.error("Invalid integer for record retries; set -recordretries/RECORD_RETRIES to a whole number")
+    if retries < 0:
+        parser.error("Invalid record retries; set -recordretries/RECORD_RETRIES to 0 or more")
+    return retries
 
 
 def parse_auth_invalid_policy(parser, value):
@@ -94,6 +141,11 @@ class RecorderState:
     auth_status: AuthValidationStatus = AuthValidationStatus.NOT_CONFIGURED
     last_auth_validation_time: float = 0
     invalid_auth_notified: bool = False
+    consecutive_twitch_errors: int = 0
+    twitch_errors_notified: bool = False
+    start_failures: int = 0
+    last_failure_key: object = None
+    recording_notified: bool = False
 
 
 def invalid_auth_message(config):
@@ -154,44 +206,163 @@ def handle_recording_error(config, streamlink_manager, notifier_manager, error, 
     if streamlink_manager.is_invalid_twitch_auth_error(error):
         return apply_invalid_auth_policy(config, notifier_manager, state)
 
-    message = f"Recording {config.user} failed: {type(error).__name__}. Recorder will continue checking."
+    # Only OSError carries a safe, OS-supplied description (errno/strerror); never use str(error).
+    detail = type(error).__name__
+    key = (type(error).__name__, None)
+    if isinstance(error, OSError) and error.errno is not None:
+        detail = f"{detail} (errno {error.errno}: {os.strerror(error.errno)})"
+        key = (type(error).__name__, error.errno)
+    message = f"Recording {config.user} failed: {detail}. Recorder will continue checking."
     logger.error(message)
-    notifier_manager.notify_all(message)
+    if key != state.last_failure_key:
+        notifier_manager.notify_all(message)
+        state.last_failure_key = key
     return state
+
+
+def retry_delay(attempt):
+    """Wait before start retry number `attempt` (0-based): 5, 10, 20, 40, then 60 seconds."""
+    return min(RETRY_BASE_SECONDS * 2 ** attempt, RETRY_MAX_SECONDS)
+
+
+def start_retry_sleep(config, state):
+    """Short backoff for the first record_retries consecutive start failures, then the normal timer."""
+    state.start_failures += 1
+    if state.start_failures <= config.record_retries:
+        return retry_delay(state.start_failures - 1)
+    return config.timer
+
+
+def error_backoff_seconds(timer, consecutive_errors):
+    """Sleep time after a Twitch ERROR: the timer for the first one, doubling up to a cap."""
+    cap = max(timer, MAX_ERROR_BACKOFF_SECONDS)
+    return min(timer * 2 ** max(consecutive_errors - 1, 0), cap)
+
+
+def track_twitch_status(config, notifier_manager, stream_status, state):
+    if stream_status == StreamStatus.ERROR:
+        state.consecutive_twitch_errors += 1
+        if state.consecutive_twitch_errors >= config.twitch_error_threshold and not state.twitch_errors_notified:
+            notifier_manager.notify_all(
+                f"Twitch API checks for {config.user} have failed {state.consecutive_twitch_errors} times in a row. "
+                "Recordings may be missed. Check the Twitch client id/secret and Twitch status."
+            )
+            state.twitch_errors_notified = True
+        return state
+
+    if state.twitch_errors_notified:
+        notifier_manager.notify_all(f"Twitch API checks for {config.user} recovered. Stream checks are working again.")
+    state.consecutive_twitch_errors = 0
+    state.twitch_errors_notified = False
+    return state
+
+
+NAME_MAX_BYTES = 255
+# run_streamlink appends ".part" (5 bytes) or ".<ext>" (ts/mp4/m3u8-family); keep spare room.
+SUFFIX_RESERVE = 16
+MAX_USER_CHARS = 25  # Twitch login limit
+_RESERVED_CHARS = re.compile(r'[<>:"/\\|?*]')
+
+
+def _truncate_utf8(text, max_bytes):
+    """Cut text to at most max_bytes UTF-8 bytes without splitting a character."""
+    if max_bytes <= 0:
+        return ""
+    return text.encode("utf-8")[:max_bytes].decode("utf-8", "ignore")
+
+
+def _sanitize_component(text):
+    """Make text safe as part of a filename.
+
+    Order matters: reserved path characters are replaced with "_" first, then
+    anything outside [\\w\\s._-] is removed, then control/format characters are
+    dropped and whitespace runs (incl. newlines) collapse to one space.
+    """
+    text = unicodedata.normalize("NFC", text or "")
+    text = _RESERVED_CHARS.sub("_", text)
+    text = re.sub(r"[^\w\s._-]", "", text)
+    text = "".join(c for c in text if c.isspace() or not unicodedata.category(c).startswith("C"))
+    text = re.sub(r"\s+", " ", text)
+    return text.strip(" .")
+
+
+def _sanitize_user(user):
+    """Reduce user to the Twitch login charset [A-Za-z0-9_], max 25 chars, else "unknown"."""
+    text = re.sub(r"[^A-Za-z0-9_]+", "_", user or "")
+    text = re.sub(r"_+", "_", text).strip("_")[:MAX_USER_CHARS].strip("_")
+    return text or "unknown"
+
+
+def build_recording_basename(user, title, now):
+    """Return "<user> - <YYYY-mm-dd HH-MM-SS> - <title>", capped for the filesystem."""
+    budget = NAME_MAX_BYTES - SUFFIX_RESERVE
+    safe_user = _sanitize_user(user)
+    prefix = f"{safe_user} - {now.strftime('%Y-%m-%d %H-%M-%S')}"
+    title_budget = budget - len(prefix.encode("utf-8")) - len(" - ")
+    safe_title = _truncate_utf8(_sanitize_component(title), title_budget).strip(" .")
+    return f"{prefix} - {safe_title}" if safe_title else prefix
 
 
 def loop_check(config):
     twitch_manager = TwitchManager(config)
     streamlink_manager = StreamlinkManager(config)
     notifier_manager = NotificationManager(config)
+    try:
+        _run_loop(config, twitch_manager, streamlink_manager, notifier_manager)
+    finally:
+        notifier_manager.flush()  # best-effort, bounded: send the last messages before exiting
 
+
+def _run_loop(config, twitch_manager, streamlink_manager, notifier_manager):
+    beat()
     state = validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, force_notify=True)
 
     while True:
+        beat()
+        if stop_requested():
+            raise StopRequested()  # a stop whose exception was swallowed upstream
         if should_validate_auth(config, state):
             state = validate_auth_or_apply_policy(config, streamlink_manager, notifier_manager, state=state)
         stream_status, title = twitch_manager.check_user(config.user)
+        state = track_twitch_status(config, notifier_manager, stream_status, state)
+        if stream_status == StreamStatus.ERROR:
+            time.sleep(error_backoff_seconds(config.timer, state.consecutive_twitch_errors))
+            continue
         if stream_status == StreamStatus.ONLINE:
             if not should_attempt_recording(config, state):
                 logger.error("Skipping recording for %s because Twitch playback auth token is invalid", config.user)
                 time.sleep(config.timer)
                 continue
-            safe_title = re.sub(r"[^\w\s._-]|[<>:\"/\\|?*]", "", title)
-            safe_title = os.path.basename(safe_title)
-            filename = f"{config.user} - {datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')} - {safe_title}"
+            filename = build_recording_basename(config.user, title, datetime.datetime.now())
             recorded_filename = os.path.join("./download/", filename)
-            message = f"Recording {config.user} ..."
-            notifier_manager.notify_all(message)
-            logger.info(message)
+
+            def on_start():
+                if not state.recording_notified:  # once per online episode, not per retry
+                    notifier_manager.notify_all(f"Recording {config.user} ...")
+                    state.recording_notified = True
+                logger.info("Recording %s ...", config.user)
+
             try:
-                streamlink_manager.run_streamlink(config.user, recorded_filename)
+                streamlink_manager.run_streamlink(config.user, recorded_filename, on_start=on_start)
+            except NoStreamsAvailable:
+                logger.info("No playable stream for %s yet", config.user)
+                time.sleep(start_retry_sleep(config, state))
+                continue
             except Exception as error:
                 state = handle_recording_error(config, streamlink_manager, notifier_manager, error, state=state)
-                time.sleep(config.timer)
+                time.sleep(start_retry_sleep(config, state))
                 continue
+            state.start_failures = 0
+            state.last_failure_key = None
+            state.recording_notified = False
             message = f"Stream {config.user} is done. File saved as {filename}. Going back to checking.."
             logger.info(message)
             notifier_manager.notify_all(message)
+            time.sleep(RECHECK_DELAY_SECONDS)  # the stream may have only dropped; look again soon
+            continue
+        state.start_failures = 0
+        state.last_failure_key = None
+        state.recording_notified = False
         time.sleep(config.timer)
 
 def parse_arguments(argv=None):
@@ -208,6 +379,8 @@ def parse_arguments(argv=None):
     parser.add_argument("-oauthtoken", help="Your OAuth token for Twitch API")
     parser.add_argument("-authinvalidpolicy", help="What to do when Twitch playback auth token is invalid: exit or notify")
     parser.add_argument("-authvalidationinterval", help="Seconds between Twitch playback auth token validation checks")
+    parser.add_argument("-recordretries", help="Short-backoff retries when a live stream can't be started before falling back to the timer")
+    parser.add_argument("-twitcherrorthreshold", help="Consecutive Twitch API failures before a notification is sent")
     args = parser.parse_args(argv)
 
     user = require_config(
@@ -243,6 +416,16 @@ def parse_arguments(argv=None):
         first_config_value(args.authvalidationinterval, ("TWITCH_AUTH_VALIDATION_INTERVAL", "authvalidationinterval"), 3600),
     )
 
+    twitch_error_threshold = parse_twitch_error_threshold(
+        parser,
+        first_config_value(args.twitcherrorthreshold, ("TWITCH_ERROR_NOTIFY_THRESHOLD", "twitcherrorthreshold"), DEFAULT_TWITCH_ERROR_THRESHOLD),
+    )
+
+    record_retries = parse_record_retries(
+        parser,
+        first_config_value(args.recordretries, ("RECORD_RETRIES", "recordretries"), DEFAULT_RECORD_RETRIES),
+    )
+
     return AppConfig(
         timer=timer,
         user=user,
@@ -256,12 +439,18 @@ def parse_arguments(argv=None):
         oauth_token=first_config_value(args.oauthtoken, ("TWITCH_AUTH_TOKEN", "TWITCH_OAUTH_TOKEN", "oauthtoken")),
         auth_invalid_policy=auth_invalid_policy,
         auth_validation_interval=auth_validation_interval,
+        twitch_error_threshold=twitch_error_threshold,
+        record_retries=record_retries,
     )
 
 def main():
     config = parse_arguments()
     logger.info(f"Checking for {config.user} every {config.timer} seconds. Record with {config.quality} quality.")
-    loop_check(config)
+    install_signal_handlers()
+    try:
+        loop_check(config)
+    except StopRequested:
+        logger.info("Stop requested, exiting.")
 
 if __name__ == "__main__":
     main()

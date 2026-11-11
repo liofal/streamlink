@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cancel superseded runs of the same PR only. Push/release (workflow_call) and
+# manual runs get a per-run group so they never queue behind or cancel each other.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || format('ci-run-{0}', github.run_id) }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python (matches Dockerfile base image)
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt pytest
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Import smoke test of the entry script
+        run: |
+          python - <<'EOF'
+          import importlib.util
+
+          spec = importlib.util.spec_from_file_location("streamlink_recorder", "streamlink-recorder.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          for name in ("main", "loop_check", "AppConfig"):
+              assert hasattr(module, name), f"streamlink-recorder.py is missing {name}"
+          print("import smoke test OK")
+          EOF
+
+      - name: CLI smoke test
+        run: python streamlink-recorder.py --help
+
+  pip-audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Blocking on PRs, where a pin bump fixes it. Advisory in the release path
+    # (workflow_call from push), so a CVE disclosed after review never holds back
+    # the release that ships its fix. Unfixable CVEs: add --ignore-vuln <ID> with
+    # a comment linking a tracking issue.
+    continue-on-error: ${{ github.event_name != 'pull_request' }}
+    env:
+      # renovate: datasource=pypi depName=pip-audit
+      PIP_AUDIT_VERSION: 2.10.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python (matches Dockerfile base image)
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Install pip-audit
+        run: python -m pip install "pip-audit==${PIP_AUDIT_VERSION}"
+
+      - name: Audit runtime dependencies (including transitive)
+        run: pip-audit -r requirements.txt --progress-spinner off
+
+  docker-build:
+    name: docker-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build image (no push)
+        run: docker build --pull -t streamlink-recorder:ci .
+
+      - name: Image smoke test (hardened, read-only root filesystem)
+        run: |
+          docker run --rm --read-only --tmpfs /tmp --cap-drop ALL \
+            --security-opt no-new-privileges streamlink-recorder:ci --help
+
+      - name: Image runs as non-root 1027
+        run: test "$(docker run --rm --entrypoint id streamlink-recorder:ci -u)" = 1027
+
+      - name: Download directory is writable with a read-only root filesystem
+        run: |
+          d="$(mktemp -d)"
+          chmod 777 "$d"
+          docker run --rm --read-only --tmpfs /tmp --cap-drop ALL \
+            --security-opt no-new-privileges -v "$d":/app/download \
+            --entrypoint python streamlink-recorder:ci \
+            -c "open('/app/download/ci.part', 'wb').write(b'x')"
+          test -s "$d/ci.part"
+
+      # Report-only for now: the base image is an old patch, so OS CVEs need a
+      # base-image bump (Renovate), and this job gates releases. Make it blocking
+      # (CRITICAL, fixed only) once the base image is current. continue-on-error
+      # also keeps a scanner/DB download failure from blocking a release.
+      - name: Image vulnerability scan (report-only)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: streamlink-recorder:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"

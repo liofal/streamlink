@@ -109,5 +109,79 @@ class TestRecorderAuthValidation(unittest.TestCase):
         notifier.notify_all.assert_not_called()
 
 
+class TestTwitchErrorTracking(unittest.TestCase):
+    def setUp(self):
+        self.config = MagicMock(user="testuser", twitch_error_threshold=3, timer=240)
+        self.notifier = MagicMock()
+        self.state = streamlink_recorder.RecorderState()
+        self.status = streamlink_recorder.StreamStatus
+
+    def track(self, status):
+        return streamlink_recorder.track_twitch_status(self.config, self.notifier, status, self.state)
+
+    def test_notifies_once_when_threshold_reached(self):
+        for _ in range(2):
+            self.track(self.status.ERROR)
+        self.notifier.notify_all.assert_not_called()
+        for _ in range(4):
+            self.track(self.status.ERROR)
+        self.notifier.notify_all.assert_called_once()
+        message = self.notifier.notify_all.call_args[0][0]
+        self.assertIn("testuser", message)
+        self.assertIn("3 times", message)
+
+    def test_recovery_notifies_once_and_resets(self):
+        for _ in range(3):
+            self.track(self.status.ERROR)
+        self.track(self.status.OFFLINE)
+        self.track(self.status.OFFLINE)
+        self.assertEqual(self.notifier.notify_all.call_count, 2)
+        self.assertIn("recovered", self.notifier.notify_all.call_args[0][0])
+        self.assertEqual(self.state.consecutive_twitch_errors, 0)
+        self.assertFalse(self.state.twitch_errors_notified)
+
+    def test_blip_below_threshold_is_silent_and_resets_count(self):
+        self.track(self.status.ERROR)
+        self.track(self.status.ONLINE)
+        self.notifier.notify_all.assert_not_called()
+        self.assertEqual(self.state.consecutive_twitch_errors, 0)
+
+    def test_backoff_doubles_and_caps(self):
+        backoff = streamlink_recorder.error_backoff_seconds
+        self.assertEqual([backoff(240, n) for n in (1, 2, 3, 4)], [240, 480, 600, 600])
+        self.assertEqual(backoff(900, 5), 900)
+        self.assertEqual(backoff(15, 1), 15)
+
+    def test_loop_sleeps_with_backoff_on_error_only(self):
+        config = MagicMock(user="testuser", twitch_error_threshold=5, timer=240, oauth_token=None)
+        statuses = [self.status.ERROR, self.status.ERROR, self.status.OFFLINE]
+        sleeps = []
+
+        def fake_sleep(seconds):
+            sleeps.append(seconds)
+            if len(sleeps) == 3:
+                raise KeyboardInterrupt
+
+        with patch.object(streamlink_recorder, "TwitchManager") as tm, \
+                patch.object(streamlink_recorder, "StreamlinkManager"), \
+                patch.object(streamlink_recorder, "NotificationManager"), \
+                patch.object(streamlink_recorder, "validate_auth_or_apply_policy", return_value=streamlink_recorder.RecorderState()), \
+                patch.object(streamlink_recorder.time, "sleep", fake_sleep):
+            tm.return_value.check_user.side_effect = [(s, "") for s in statuses]
+            with self.assertRaises(KeyboardInterrupt):
+                streamlink_recorder.loop_check(config)
+        self.assertEqual(sleeps, [240, 480, 240])
+
+    def test_threshold_option_parsing(self):
+        base = ["-user", "u", "-clientid", "c", "-clientsecret", "s"]
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(streamlink_recorder.parse_arguments(base).twitch_error_threshold, 5)
+            self.assertEqual(streamlink_recorder.parse_arguments(base + ["-twitcherrorthreshold", "2"]).twitch_error_threshold, 2)
+        with patch.dict("os.environ", {"TWITCH_ERROR_NOTIFY_THRESHOLD": "7"}, clear=True):
+            self.assertEqual(streamlink_recorder.parse_arguments(base).twitch_error_threshold, 7)
+        with patch.dict("os.environ", {}, clear=True), self.assertRaises(SystemExit):
+            streamlink_recorder.parse_arguments(base + ["-twitcherrorthreshold", "x"])
+
+
 if __name__ == "__main__":
     unittest.main()

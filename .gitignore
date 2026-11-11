@@ -5,3 +5,9 @@ kube/undeploy.sh
 kube/charts/secret.yaml
 .worktrees/
 .pi/
+__pycache__/
+*.pyc
+streamlink-secrets.env
+*.env
+!*.env.example
+!default.env

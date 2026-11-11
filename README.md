@@ -123,7 +123,7 @@ Existing lowercase variable names remain supported for compatibility. New deploy
 | Purpose | Existing name | Preferred alias |
 | --- | --- | --- |
 | Twitch user to monitor | `user` | `TWITCH_USER` |
-| Check interval in seconds | `timer` | `TIMER` |
+| Check interval in seconds (minimum 1; under 15 logs a rate-limit warning) | `timer` | `TIMER` |
 | Recording quality | `quality` | `STREAM_QUALITY` |
 | Twitch Helix client ID | `clientid` | `TWITCH_CLIENT_ID` |
 | Twitch Helix client secret | `clientsecret` | `TWITCH_CLIENT_SECRET` |
@@ -132,6 +132,8 @@ Existing lowercase variable names remain supported for compatibility. New deploy
 | Telegram bot token | `telegrambottoken` | `TELEGRAM_BOT_TOKEN` |
 | Telegram chat ID | `telegramchatid` | `TELEGRAM_CHAT_ID` |
 | Comma-separated Twitch game IDs to record | `gamelist` | `GAME_LIST` |
+| Consecutive Twitch API failures before a notification is sent (default `5`) | `twitcherrorthreshold` | `TWITCH_ERROR_NOTIFY_THRESHOLD` |
+| Retries (5s, 10s, 20s, 40s, 60s backoff) when a live stream can't be started, before falling back to `timer` (default `5`, `0` disables) | `recordretries` | `RECORD_RETRIES` |
 
 ## Twitch credentials and playback auth
 
@@ -194,6 +196,11 @@ TWITCH_AUTH_VALIDATION_INTERVAL=3600
 
 Unknown validation failures, such as temporary network errors, do not cause the recorder to exit. Only confirmed invalid-token errors apply the invalid-token policy.
 
+Known limitations:
+
+- Validation runs between recordings, so it pauses for the whole length of a recording. An invalid token is noticed after the recording ends.
+- If Twitch rate-limits (HTTP 429) a stream check, the library waits for the limit to reset and the check is read as offline. The next check corrects it.
+
 # Docker
 
 For Docker, prefer an env file instead of inline `-e` flags for secrets:
@@ -250,6 +257,20 @@ you can specify the default for compose here
 
 _**Warning:** The folder does not exist in the container and need te be created as a volume in order to be accessed from outside your container, you should map it if you want to access it_
 
+## Running as non-root (5.0.0 and later)
+
+The image runs as user `1027`, group `100` (`users`), not root. Docker Compose and the Helm chart also use a read-only root filesystem, drop all capabilities and block privilege escalation. Only the download volume and `/tmp` are writable.
+
+**Before upgrading**, make the download folder writable for `1027:100`. Folders and files written by older, root-run containers are usually owned by root:
+
+```sh
+# On the NAS / host, for each streamer folder
+chown -R 1027:100 /volume1/twitch/<streamer>
+```
+
+- **Kubernetes:** pre-create the NFS folder of every new streamer (`<nfs.path>/<streamer.name>`) owned by `1027:100` before you install the chart. Otherwise kubelet creates the `subPath` folder as root and the recorder cannot write to it. The user and group are set by `podSecurityContext` (`runAsUser`, `runAsGroup`, `fsGroup`) in the chart values. `ffmpeg.workdir` must be `/app/download`.
+- **Docker:** a new named volume inherits the right owner from the image. For an existing volume or bind mount, `chown` it as above, or run with `--user <uid>:<gid>` matching its owner. `--user 0:0` restores the old root behavior, but it is not recommended.
+
 ## FFmpeg Conversion
 
 The `docker-compose.yml` file includes an FFmpeg service that automatically converts TS container files to MP4. The FFmpeg service is configured to run periodically and process files in the `/app/download` directory.
@@ -261,6 +282,12 @@ The `docker-compose.yml` file includes an FFmpeg service that automatically conv
 For large recordings, give the FFmpeg container at least 512M of memory or remove the memory limit. Very low limits such as 256M can cause FFmpeg to be killed while remuxing large `.ts` files.
 
 If conversion fails, the FFmpeg image removes partial `.mp4` output and renames the source file from `video.ts` to `video.ts.failed`. This prevents restart policies from retrying the same failing file indefinitely.
+
+## Shutdown and failed recordings
+
+On SIGTERM or SIGINT (`docker stop`, pod termination, Ctrl-C) the recorder stops the current recording, closes the file, renames it to its final `.ts`/`.mp4` name and exits. A stop sends no "done" notification.
+
+If a recording fails midway (network stall, disk full), the data is kept as `<name>.ts.incomplete` (or `.mp4.incomplete`) instead of a complete-looking file. The FFmpeg sidecar only converts `*.ts`, so it skips these. Rename the file to `.ts` to convert it anyway. A recording that failed before writing any data leaves no file.
 
 To customize the FFmpeg conversion settings, you can modify the environment variables in the `docker-compose.yml` file.
 
@@ -287,6 +314,7 @@ To deploy this project on Kubernetes using Helm, follow these steps:
     For a copy/paste-safe workflow that avoids writing secrets into shell history, put real values in a local env file that is outside git, restrict its permissions, and generate the Secret from that file:
 
     ```sh
+    # streamlink-secrets.env is gitignored; never commit it
     install -m 600 /dev/null ./streamlink-secrets.env
     $EDITOR ./streamlink-secrets.env
     kubectl create secret generic streamlink-secrets \
@@ -360,6 +388,10 @@ To deploy this project on Kubernetes using Helm, follow these steps:
     ```sh
     helm upgrade my-streamlink streamlink/streamlink -n streamlink -f /path/to/your/values.yaml
     ```
+
+    The Deployment uses the `Recreate` strategy, so an upgrade stops the old pod before starting the new one; two recorders never write to the same folder. Changing the streamer config (`user`, `quality`, `timer`) also restarts the pod.
+
+    **Resources and liveness:** both containers have memory requests and limits (`resources` in `values.yaml`; ffmpeg gets 1Gi, see #40). The recorder touches `/tmp/streamlink-recorder.heartbeat` on every check and every 30 seconds while recording. A liveness probe restarts it when that file is older than `max(timer, 600) + 300` seconds. Override this with `livenessProbe.maxHeartbeatAgeSeconds`, or disable the probe with `livenessProbe.enabled: false`.
 
 7. **Uninstall the Helm Release:**
     To remove the deployment (this does not remove the Secret):

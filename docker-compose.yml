@@ -1,5 +1,13 @@
 x-common: &common
+    # Non-root, matching the owner of /volume1/twitch. Only the volume and /tmp are writable.
     user: 1027:100
+    read_only: true
+    tmpfs:
+    - /tmp
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
     logging:
       driver: json-file
     restart: unless-stopped
@@ -9,11 +17,12 @@ x-common: &common
 services:
   streamlink:
     <<: *common
-    image: ghcr.io/liofal/streamlink:4.0.0
+    image: ghcr.io/liofal/streamlink:5.0.0
     deploy:
       resources:
         limits:
-          memory: 256M
+          # Same as the Helm chart: Python + streamlink buffers need about 100-150M while recording.
+          memory: 512M
     build:
       context: .
       dockerfile: Dockerfile
